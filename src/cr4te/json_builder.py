@@ -1,8 +1,7 @@
 import logging
 import json
-from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple, Callable, TypeAlias, DefaultDict
+from typing import List, Dict, Optional, Any, Callable, TypeAlias, DefaultDict
 from datetime import datetime
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -13,11 +12,15 @@ from .constants import CR4TE_JSON_FILE_NAME
 from .utils import json_utils
 from .utils import text_utils
 from .utils import image_utils
+from .utils.error_utils import format_build_failures
 from .enums.orientation import Orientation
+from .enums.domain import Domain
+from .enums.creator_type import CreatorType
 from .context.json_context import JsonBuildContext
-from .validators.cr4te_schema import Creator as CreatorSchema
+from .validators.cr4te_schema import Creator as CreatorSchema, build_domain_meta
+from .validators.global_state_schema import GlobalState
 
-__all__ = ["build_creator_json_files", "clean_creator_json_files"]
+__all__ = ["build_creator_json_files", "clean_creator_json_files", "load_global_state", "save_global_state", "clean_global_state"]
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +77,9 @@ def _safe_normalize_date(date_str: Optional[str], field_name: str, context_name:
 def _is_excluded_path(path: Path, exclude_prefixes: tuple[str, ...]) -> bool:
     return any(part.startswith(exclude_prefixes) or part.startswith('.') for part in path.parts)
         
-def _validate_creator(creator: Dict[str, Any]) -> None:
+def _validate_creator(creator: Dict[str, Any], domain: Domain = Domain.CREATOR) -> None:
     try:
-        CreatorSchema(**creator)
+        CreatorSchema.model_validate(creator, context={"domain": domain})
 
     except ValidationError as e:
         name = creator.get("name", "<unknown>")
@@ -93,6 +96,7 @@ def _load_existing_json(json_path: Path) -> Dict[str, Any]:
     if json_path.exists():
         return json_utils.load_json(json_path)
     return {}
+
 
 class ImageSelector:
     def __init__(self, basename: str, orientation: Orientation, auto_find: bool = True):
@@ -322,7 +326,12 @@ def _iter_media_files(ctx, creator_dir):
 
         yield media_path
 
-def _build_creator(ctx: JsonBuildContext, creator_dir: Path) -> Dict[str, Any]:
+def _build_creator(
+    ctx: JsonBuildContext,
+    creator_dir: Path,
+    domain: Domain,
+    preserve_domain_meta: bool,
+) -> Dict[str, Any]:
     media_index = CreatorMediaIndex(ctx)
     for media_path in _iter_media_files(ctx, creator_dir):
         media_index.add_media(media_path)
@@ -333,21 +342,28 @@ def _build_creator(ctx: JsonBuildContext, creator_dir: Path) -> Dict[str, Any]:
     projects = []
     for project_name, folders in media_index.project_media.items():
         cover = media_index.get_selected_cover(project_name)
+        existing_project = existing_projects.get(project_name, {})
+        domain_meta = build_domain_meta(
+            domain,
+            existing_project.get("domain_meta", {}) if preserve_domain_meta else {},
+        )
         projects.append({
             "title": project_name,
-            "tags": existing_projects.get(project_name, {}).get("tags", []),
-            "info": text_utils.read_text(creator_dir / project_name / ctx.readme_file_name) or existing_projects.get(project_name, {}).get("info", ""),
+            "tags": existing_project.get("tags", []),
+            "info": text_utils.read_text(creator_dir / project_name / ctx.readme_file_name) or existing_project.get("info", ""),
             "cover": str(cover.relative_to(ctx.input_dir)) if cover else "",
-            "release_date": _safe_normalize_date(existing_projects.get(project_name, {}).get("release_date",""), "release_date", f"{creator_name} - {project_name}"),
+            "release_date": _safe_normalize_date(existing_project.get("release_date", ""), "release_date", f"{creator_name} - {project_name}"),
             "media_groups": _build_media_groups(folders, ctx.metadata_folder_name),
+            "domain_meta": domain_meta,
         })
     
     separators = ctx.collaboration_separators
     creator_type = existing_creator.get("type")
 
-    if creator_type not in ["person", "collaboration"]:
+    valid_creator_types = {creator_type.value for creator_type in CreatorType}
+    if creator_type not in valid_creator_types:
         is_collab = _is_collaboration(creator_name, separators)
-        creator_type = "collaboration" if is_collab else "person"
+        creator_type = CreatorType.COLLABORATION.value if is_collab else CreatorType.PERSON.value
         members = [name.strip() for name in text_utils.multi_split(creator_name, separators)] if is_collab else []
     else:
         members = existing_creator.get("collaboration", {}).get("members", [])
@@ -389,7 +405,7 @@ def _link_creator_collaborations(collab_map: dict[str, dict[str, Any]]) -> None:
 
     # Build reverse index: If it's a collab, notify the members
     for creator_name, info in collab_map.items():
-        if info["type"] == "collaboration" and info["members"]:
+        if info["type"] == CreatorType.COLLABORATION.value and info["members"]:
             for member in info["members"]:
                 reverse_map[member].append(creator_name)
 
@@ -399,7 +415,7 @@ def _link_creator_collaborations(collab_map: dict[str, dict[str, Any]]) -> None:
     for creator_name, info in collab_map.items():
         # Only "person" types get the reverse "collaborations" list updated
         # Collaborations themselves don't usually list other collaborations they belong to here
-        if info["type"] == "collaboration":
+        if info["type"] == CreatorType.COLLABORATION.value:
             continue
 
         json_path = info["dir"] / CR4TE_JSON_FILE_NAME
@@ -442,9 +458,16 @@ def _write_creator_json(creator_dir: Path, creator_data: Dict[str, Any]) -> None
 
     tmp_path.replace(json_path)
             
-def build_creator_json_files(input_dir: Path, media_rules: dict[str, Any]) -> None:
+def build_creator_json_files(
+    input_dir: Path,
+    media_rules: dict[str, Any],
+    domain: Domain = Domain.CREATOR,
+    previous_domain: Optional[Domain] = None,
+) -> None:
     ctx = JsonBuildContext(input_dir, media_rules)
     collab_map: dict[str, dict[str, Any]] = {}
+    failures: List[tuple[str, Exception]] = []
+    preserve_domain_meta = previous_domain is None or previous_domain == domain
 
     for creator_dir in sorted(ctx.input_dir.iterdir()):
         if not creator_dir.is_dir() or _is_excluded_path(creator_dir, (ctx.global_exclude_prefix,)):
@@ -452,8 +475,8 @@ def build_creator_json_files(input_dir: Path, media_rules: dict[str, Any]) -> No
             
         try:
             logger.info(f"Processing: {creator_dir.name}")
-            creator_data = _build_creator(ctx, creator_dir)
-            _validate_creator(creator_data)
+            creator_data = _build_creator(ctx, creator_dir, domain, preserve_domain_meta)
+            _validate_creator(creator_data, domain)
             _write_creator_json(creator_dir, creator_data)
             
             collab_map[creator_data["name"]] = {
@@ -464,9 +487,18 @@ def build_creator_json_files(input_dir: Path, media_rules: dict[str, Any]) -> No
             
         except Exception as e:
             logger.exception(f"{creator_dir.name}: failed to process")
+            failures.append((creator_dir.name, e))
             continue
 
     _link_creator_collaborations(collab_map)
+
+    if failures:
+        logger.error(
+            "JSON build completed with %s succeeded creator(s) and %s failed creator(s).",
+            len(collab_map),
+            len(failures),
+        )
+        raise ValueError(format_build_failures("JSON build", failures))
     
 def clean_creator_json_files(input_dir: Path, dry_run: bool = False) -> None:
     total = 0
@@ -500,3 +532,70 @@ def clean_creator_json_files(input_dir: Path, dry_run: bool = False) -> None:
         
     if dry_run:
         logger.info("\t(Dry-run mode: no files were deleted)")
+
+# === Global state functions ===
+
+def _get_global_json_file_path(input_dir: Path) -> Path:
+    """
+    Returns the path to the global cr4te.json file in the input directory.
+    """
+    return input_dir / CR4TE_JSON_FILE_NAME
+
+def load_global_state(input_dir: Path) -> Optional[GlobalState]:
+    """
+    Loads the global cr4te.json (state) from the input directory.
+    Returns None if the file doesn't exist.
+    """
+    global_state_path = _get_global_json_file_path(input_dir)
+    if global_state_path.exists():
+        try:
+            return GlobalState.model_validate(json_utils.load_json(global_state_path))
+        except Exception as e:
+            logger.warning(f"Invalid global state in {global_state_path}, ignoring: {e}")
+    return None
+
+def save_global_state(input_dir: Path, domain: Optional[Domain]) -> None:
+    """
+    Saves the domain setting to the global cr4te.json file in the input directory.
+    """
+    global_state_path = _get_global_json_file_path(input_dir)
+    existing = {}
+    
+    if global_state_path.exists():
+        try:
+            existing = json_utils.load_json(global_state_path)
+        except Exception as e:
+            logger.warning(f"Could not load existing global state from {global_state_path}: {e}")
+
+    state = GlobalState(domain=domain).model_dump(mode="json")
+
+    if existing == state:
+        logger.debug(f"Global state is unchanged, not writing to {global_state_path}")
+        return
+    
+    tmp_path = global_state_path.with_suffix(".tmp")
+
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=4)
+
+    tmp_path.replace(global_state_path)
+
+def clean_global_state(input_dir: Path, dry_run: bool = False) -> bool:
+    """
+    Deletes the global cr4te.json file from the input directory.
+    Returns True if deleted (or not found in dry-run), False on error.
+    """
+    global_state_path = _get_global_json_file_path(input_dir)
+    if not global_state_path.exists():
+        return True
+    
+    logger.info(f"{'[DRY-RUN] ' if dry_run else ''}Deleting: {global_state_path}")
+    if dry_run:
+        return True
+    
+    try:
+        global_state_path.unlink()
+        return True
+    except Exception as e:
+        logger.error(f"Deleting {global_state_path}: {e}")
+        return False

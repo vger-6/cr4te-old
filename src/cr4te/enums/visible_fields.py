@@ -7,6 +7,7 @@ class CreatorField(str, Enum):
     CIVIL_NAME = "civil_name"
     ALIASES = "aliases"
     DEBUT_AGE = "debut_age"
+    AGE_AT_TIME = "age_at_time"
     ACTIVE_SINCE = "active_since"
     MEMBERS = "members"
     FOUNDING_DATE = "founding_date"

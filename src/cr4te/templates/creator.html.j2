@@ -1,6 +1,7 @@
 {% import "partials/_media_sections.html.j2" as media_macros %}
 {% import "partials/_utils.html.j2" as utils %}
 {% import "partials/_media_badges.html.j2" as media_badges %}
+{% import "partials/_meta_list.html.j2" as meta_macros %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -43,60 +44,7 @@
                   <img src="{{ path_to_root }}{{ creator.rel_portrait_path }}" alt="Portrait of {{ creator.name }}">
                 </a>
               {% endif %}
-              <div class="meta-list">
-                <div class="meta-label">Name:</div>
-                <div class="meta-value">{{ creator.name }}</div>
-                
-                {% if creator.civil_name %}
-                  <div class="meta-label">Civil Name:</div>
-                  <div class="meta-value">{{ creator.civil_name }}</div>
-                {% endif %}
-
-                {% if creator.aliases %}
-                  <div class="meta-label">Aliases:</div>
-                  <div class="meta-value">{{ creator.aliases | join(', ') }}</div>
-                {% endif %}
-
-                {% if creator.member_names %}
-                  <div class="meta-label">{{ html_settings.creator_page_members_title }}:</div>
-                  <div class="meta-value">{{ creator.member_names | join('<br>') | safe }}</div>
-                {% endif %}
-
-                {% if creator.date_of_birth %}
-                  <div class="meta-label">Born:</div>
-                  <div class="meta-value">{{ creator.date_of_birth }}</div>
-                {% endif %}
-
-                {% if creator.date_of_death %}
-                  <div class="meta-label">Died:</div>
-                  <div class="meta-value">{{ creator.date_of_death }}</div>
-                {% endif %}
-
-                {% if creator.founding_date %}
-                  <div class="meta-label">Founded:</div>
-                  <div class="meta-value">{{ creator.founding_date }}</div>
-                {% endif %}
-                
-                {% if creator.dissolution_date %}
-                  <div class="meta-label">Dissolved:</div>
-                  <div class="meta-value">{{ creator.dissolution_date }}</div>
-                {% endif %}
-
-                {% if creator.nationality %}
-                  <div class="meta-label">Nationality:</div>
-                  <div class="meta-value">{{ creator.nationality }}</div>
-                {% endif %}
-
-                {% if creator.debut_age %}
-                  <div class="meta-label">Debut Age:</div>
-                  <div class="meta-value">{{ creator.debut_age }}</div>
-                {% endif %}
-
-                {% if creator.active_since %}
-                  <div class="meta-label">Active Since:</div>
-                  <div class="meta-value">{{ creator.active_since }}</div>
-                {% endif %}
-              </div>
+              {{ meta_macros.render_meta_list(path_to_root, creator.profile_meta) }}
             </div>
           </div>
         </div>

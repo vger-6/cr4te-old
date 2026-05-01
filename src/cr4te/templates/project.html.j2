@@ -1,5 +1,6 @@
 {% import "partials/_media_sections.html.j2" as media_macros %}
 {% import "partials/_utils.html.j2" as utils %}
+{% import "partials/_meta_list.html.j2" as meta_macros %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -42,14 +43,7 @@
               <a href="{{ path_to_root }}{{ project.rel_thumbnail_path }}" class="single-lightbox" data-lightbox-single="true">
                 <img src="{{ path_to_root }}{{ project.rel_thumbnail_path }}" alt="Preview of {{ project.title }}">
               </a>
-              <div class="meta-list">
-                <div class="meta-label">Title:</div>
-                <div class="meta-value">{{ project.title }}</div>
-                {% if project.release_date %}
-                  <div class="meta-label">Release Date:</div>
-                  <div class="meta-value">{{ project.release_date }}</div>
-                {% endif %}
-              </div>
+              {{ meta_macros.render_meta_list(path_to_root, project.meta) }}
             </div>
           </div>
         </div>
@@ -79,14 +73,7 @@
                     <img src="{{ path_to_root }}{{ creator.rel_portrait_path }}" alt="Portrait of {{ creator.name }}">
                   </a>
                 {% endif %}
-                <div class="meta-list">
-                  <div class="meta-label">Name:</div>
-                  <div class="meta-value"><a href="{{ path_to_root }}{{ creator.rel_html_path }}">{{ creator.name }}</a></div>
-                  {% if creator.age_at_release %}
-                    <div class="meta-label">Age at Time:</div>
-                    <div class="meta-value">{{ creator.age_at_release }}</div>
-                  {% endif %}
-                </div>
+                {{ meta_macros.render_meta_list(path_to_root, creator.profile_meta) }}
               </div>
             </div>
           </div>
@@ -107,10 +94,7 @@
                     <img src="{{ path_to_root }}{{ collaboration.rel_portrait_path }}" alt="Portrait of {{ collaboration.name }}">
                   </a>
                 {% endif %}
-                <div class="meta-list">
-                  <div class="meta-label">Name:</div>
-                  <div class="meta-value"><a href="{{ path_to_root }}{{ collaboration.rel_html_path }}">{{ collaboration.name }}</a></div>
-                </div>
+                {{ meta_macros.render_meta_list(path_to_root, collaboration.profile_meta) }}
               </div>
             </div>
           </div>
@@ -129,14 +113,7 @@
                       <img src="{{ path_to_root }}{{ participant.rel_portrait_path}}" alt="Portrait of {{ participant.name }}">
                     </a>
                   {% endif %}
-                  <div class="meta-list">
-                    <div class="meta-label">Name:</div>
-                    <div class="meta-value"><a href="{{ path_to_root }}{{ participant.rel_html_path }}">{{ participant.name }}</a></div>
-                    {% if participant.age_at_release %}
-                      <div class="meta-label">Age at Time:</div>
-                      <div class="meta-value">{{ participant.age_at_release }}</div>
-                    {% endif %}
-                  </div>
+                  {{ meta_macros.render_meta_list(path_to_root, participant.profile_meta) }}
                 </div>
               </div>
             </div>

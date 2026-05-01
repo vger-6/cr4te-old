@@ -2,7 +2,8 @@ import logging
 import shutil
 import os
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Iterable, Set, Tuple
+from enum import Enum
+from typing import List, Dict, Any, Optional, Iterable, Set, Tuple, Sequence
 from datetime import datetime
 from collections import defaultdict
 
@@ -23,18 +24,99 @@ from .utils import image_utils
 from .utils import date_utils
 from .utils import json_utils
 from .utils import audio_utils
+from .utils.error_utils import format_build_failures
+from .enums.domain import Domain
 from .enums.media_type import MediaType
 from .enums.thumb_type import ThumbType
 from .enums.image_sample_strategy import ImageSampleStrategy
 from .enums.image_gallery_building_strategy import ImageGalleryBuildingStrategy
 from .enums.orientation import Orientation
 from .enums.visible_fields import CreatorField, ProjectField
+from .enums.creator_type import CreatorType
 from .context.html_context import HtmlBuildContext, THUMBNAILS_DIRNAME
-from .validators.cr4te_schema import Creator as CreatorSchema
+from .validators.cr4te_schema import Creator as CreatorSchema, get_domain_meta_fields, get_domain_meta_model
 
 __all__ = ["clear_output_folder", "build_html_pages"]
 
 logger = logging.getLogger(__name__)
+
+
+class RenderMode(str, Enum):
+    INLINE = "inline"
+    LIST = "list"
+
+
+DOMAIN_META_CONFIG_OVERRIDES = {
+    Domain.MODEL: {
+        "makeup_artists": {"label": "Makeup Artists"},
+    },
+    Domain.BOOK: {
+        "isbns": {"label": "ISBNs"},
+        "citations": {"label": "Citations"},
+        "cover_artists": {"label": "Cover Artists"},
+    },
+    Domain.FILM: {
+        "actors": {"label": "Cast", "render": RenderMode.LIST},
+        "score_composers": {"label": "Score Composers"},
+        "visual_effects": {"label": "Visual Effects"},
+        "costume_designers": {"label": "Costume Designers"},
+    },
+    Domain.MUSIC: {
+        "cover_artists": {"label": "Cover Artists"},
+    },
+    Domain.ART: {},
+}
+
+
+def _default_domain_meta_config(domain: Domain) -> Dict[str, Dict[str, str]]:
+    return {
+        field_name: {
+            "label": field_name.replace("_", " ").title(),
+            "render": RenderMode.INLINE,
+        }
+        for field_name in get_domain_meta_model(domain).model_fields
+    }
+
+
+def _validate_domain_meta_config_overrides() -> None:
+    for domain, field_config in DOMAIN_META_CONFIG_OVERRIDES.items():
+        invalid_keys = set(field_config) - get_domain_meta_fields(domain)
+        if invalid_keys:
+            keys = ", ".join(sorted(invalid_keys))
+            raise ValueError(f"DOMAIN_META_CONFIG_OVERRIDES contains invalid keys for domain {domain.value}: {keys}")
+
+
+def _build_domain_meta_config() -> Dict[Domain, Dict[str, Dict[str, str]]]:
+    _validate_domain_meta_config_overrides()
+    config = {}
+
+    for domain in Domain:
+        domain_config = _default_domain_meta_config(domain)
+        for field_name, field_overrides in DOMAIN_META_CONFIG_OVERRIDES.get(domain, {}).items():
+            domain_config[field_name].update({
+                key: RenderMode(value) if key == "render" else value
+                for key, value in field_overrides.items()
+            })
+        config[domain] = domain_config
+
+    return config
+
+
+DOMAIN_META_CONFIG = _build_domain_meta_config()
+
+DEFAULT_CREATOR_FIELD_ORDER = [
+    CreatorField.CIVIL_NAME,
+    CreatorField.ALIASES,
+    CreatorField.MEMBERS,
+    CreatorField.DATE_OF_BIRTH,
+    CreatorField.DATE_OF_DEATH,
+    CreatorField.FOUNDING_DATE,
+    CreatorField.DISSOLUTION_DATE,
+    CreatorField.NATIONALITY,
+    CreatorField.DEBUT_AGE,
+    CreatorField.AGE_AT_TIME,
+    CreatorField.ACTIVE_SINCE,
+]
 
 # Setup Jinja2 environment
 env = Environment(
@@ -160,6 +242,85 @@ def _build_project_search_text(project: Dict, creator_name: str = "") -> str:
         search_terms.append(creator_name)
 
     return " ".join(search_terms).lower()
+
+
+def _normalize_domain_meta_value(value: Any) -> List[str] | None:
+    if value is None:
+        return None
+
+    if isinstance(value, list):
+        normalized_list = [str(item).strip() for item in value if str(item).strip()]
+        return normalized_list or None
+
+    return None
+
+
+def _build_meta_entry(label: str, value: Any, render: RenderMode = RenderMode.INLINE, url: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    if value is None:
+        return None
+
+    if isinstance(value, list):
+        normalized_value = [str(item).strip() for item in value if str(item).strip()]
+    else:
+        normalized = str(value).strip()
+        normalized_value = [normalized] if normalized else []
+
+    if not normalized_value:
+        return None
+
+    entry = {
+        "label": label.strip(),
+        "value": normalized_value,
+        "render": render.value,
+    }
+
+    if not entry["label"]:
+        return None
+
+    if url:
+        entry["url"] = url
+
+    return entry
+
+
+def _compact_meta_entries(entries: Iterable[Optional[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    return [
+        entry for entry in entries
+        if entry and entry.get("label") and entry.get("value") and entry.get("render")
+    ]
+
+
+def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
+    entries = []
+    config = DOMAIN_META_CONFIG.get(domain, {})
+
+    for field_name in get_domain_meta_model(domain).model_fields:
+        raw_value = domain_meta.get(field_name)
+        normalized_value = _normalize_domain_meta_value(raw_value)
+        if not normalized_value:
+            continue
+
+        field_config = config.get(field_name, {})
+        label = field_config.get("label") or field_name.replace("_", " ").title()
+        render_mode = field_config.get("render", RenderMode.INLINE)
+
+        entries.append({
+            "label": label,
+            "value": normalized_value,
+            "render": render_mode.value,
+        })
+
+    return entries
+
+
+def _build_project_meta_entries(domain: Domain, project: Dict[str, Any], release_date: str) -> List[Dict[str, Any]]:
+    entries = [_build_meta_entry("Title", project["title"])]
+
+    if release_date:
+        entries.append(_build_meta_entry("Release Date", release_date))
+
+    entries.extend(_build_domain_meta_entries(domain, project.get("domain_meta", {})))
+    return _compact_meta_entries(entries)
 
 
 def _compute_media_counts(media_groups: List[Dict]) -> Dict[str, int]:
@@ -367,7 +528,7 @@ def _build_media_groups_context(ctx: HtmlBuildContext, media_groups: List) -> Li
 
 
 def _calculate_age_at_release(creator: Dict, project: Dict) -> Optional[int]:
-    if creator["type"] != "person":
+    if creator["type"] != CreatorType.PERSON:
         return None
 
     dob = creator["person"]["date_of_birth"]
@@ -377,6 +538,93 @@ def _calculate_age_at_release(creator: Dict, project: Dict) -> Optional[int]:
         return None
 
     return date_utils.calculate_age_from_strings(dob, release)
+
+
+def _build_person_meta_entries(
+    creator: Dict,
+    visible: Set[CreatorField],
+    project: Optional[Dict],
+    field_order: Sequence[CreatorField],
+) -> List[Dict[str, Any]]:
+    person = creator["person"]
+    entries = []
+
+    field_builders = {
+        CreatorField.CIVIL_NAME: lambda: _build_meta_entry("Civil Name", person["civil_name"]),
+        CreatorField.ALIASES: lambda: _build_meta_entry("Aliases", creator["aliases"]),
+        CreatorField.DATE_OF_BIRTH: lambda: _build_meta_entry("Born", date_utils.format_nice_date(person["date_of_birth"])),
+        CreatorField.DATE_OF_DEATH: lambda: _build_meta_entry("Died", date_utils.format_nice_date(person["date_of_death"])),
+        CreatorField.DEBUT_AGE: lambda: _build_meta_entry("Debut Age", date_utils.format_age(_calculate_debut_age(creator))),
+    }
+
+    for field in field_order:
+        if field in visible and field in field_builders:
+            entries.append(field_builders[field]())
+
+    if project is not None and CreatorField.AGE_AT_TIME in visible:
+        entries.append(_build_meta_entry("Age at Time", date_utils.format_age(_calculate_age_at_release(creator, project))))
+
+    return entries
+
+
+def _build_collaboration_meta_entries(
+    creator: Dict,
+    visible: Set[CreatorField],
+    members_label: str,
+    field_order: Sequence[CreatorField],
+) -> List[Dict[str, Any]]:
+    collab = creator["collaboration"]
+    entries = []
+
+    field_builders = {
+        CreatorField.MEMBERS: lambda: _build_meta_entry(members_label, collab["members"], RenderMode.LIST),
+        CreatorField.FOUNDING_DATE: lambda: _build_meta_entry("Founded", date_utils.format_nice_date(collab["founding_date"])),
+        CreatorField.DISSOLUTION_DATE: lambda: _build_meta_entry("Dissolved", date_utils.format_nice_date(collab["dissolution_date"])),
+    }
+
+    for field in field_order:
+        if field in visible and field in field_builders:
+            entries.append(field_builders[field]())
+
+    return entries
+
+
+def _build_shared_creator_meta_entries(
+    creator: Dict,
+    visible: Set[CreatorField],
+    field_order: Sequence[CreatorField],
+) -> List[Dict[str, Any]]:
+    field_builders = {
+        CreatorField.NATIONALITY: lambda: _build_meta_entry("Nationality", creator["nationality"]),
+        CreatorField.ACTIVE_SINCE: lambda: _build_meta_entry("Active Since", date_utils.format_nice_date(creator["active_since"])),
+    }
+
+    return [
+        field_builders[field]()
+        for field in field_order
+        if field in visible and field in field_builders
+    ]
+
+
+def _build_creator_profile_meta_entries(
+    creator: Dict,
+    visible: Set[CreatorField],
+    project: Optional[Dict] = None,
+    link: Optional[str] = None,
+    members_label: str = "Members",
+    profile_fields: Optional[Sequence[CreatorField]] = None,
+) -> List[Dict[str, Any]]:
+    field_order = profile_fields or DEFAULT_CREATOR_FIELD_ORDER
+    entries = [_build_meta_entry("Name", creator["name"], url=link)]
+
+    if creator["type"] == CreatorType.PERSON:
+        entries.extend(_build_person_meta_entries(creator, visible, project, field_order))
+    else:
+        entries.extend(_build_collaboration_meta_entries(creator, visible, members_label, field_order))
+
+    entries.extend(_build_shared_creator_meta_entries(creator, visible, field_order))
+
+    return _compact_meta_entries(entries)
 
 
 def _collect_participant_entries(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator) -> List[Dict[str, str]]:
@@ -400,31 +648,47 @@ def _collect_creator_base_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[
     }
 
 
-def _collect_creator_entries(ctx: HtmlBuildContext, creator: Dict, project: Dict) -> Dict[str, str]:
+def _collect_creator_entries(ctx: HtmlBuildContext, creator: Dict, project: Dict) -> Dict[str, Any]:
     entries = _collect_creator_base_entries(ctx, creator)
-    entries["age_at_release"] = _calculate_age_at_release(creator, project)
+    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
+    entries["profile_meta"] = _build_creator_profile_meta_entries(
+        creator,
+        visible,
+        project=project,
+        link=entries["rel_html_path"],
+        members_label=ctx.html_settings["creator_page_members_title"],
+    )
     return entries
 
 
-def _collect_collaborator_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[str, str]:
-    return _collect_creator_base_entries(ctx, creator)
+def _collect_collaborator_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[str, Any]:
+    entries = _collect_creator_base_entries(ctx, creator)
+    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
+    entries["profile_meta"] = _build_creator_profile_meta_entries(
+        creator,
+        visible,
+        link=entries["rel_html_path"],
+        members_label=ctx.html_settings["creator_page_members_title"],
+    )
+    return entries
 
 
-def _collect_project_context(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator) -> Dict:
+def _collect_project_context(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator, domain: Domain) -> Dict:
     visible = set(ctx.html_settings.get("project_page_visible_fields", []))
     thumb_path = _resolve_thumbnail_or_default(ctx, project["cover"], ThumbType.COVER)
+    release_date = date_utils.format_nice_date(project["release_date"]) if ProjectField.RELEASE_DATE in visible else ""
 
     project_context = {
         "title": project["title"],
-        "release_date": date_utils.format_nice_date(project["release_date"]) if ProjectField.RELEASE_DATE in visible else "",
         "rel_thumbnail_path": path_utils.relative_path_from(thumb_path, ctx.output_dir).as_posix(),
         "thumbnail_orientation": image_utils.infer_image_orientation(thumb_path),
         "info_html": text_utils.markdown_to_html(project["info"]),
         "tag_map": _group_tags_by_category(project["tags"], ctx.fallback_tag_category),
+        "meta": _build_project_meta_entries(domain, project, release_date),
         "media_groups": _build_media_groups_context(ctx, project["media_groups"]),
     }
 
-    if creator["type"] == "collaboration":
+    if creator["type"] == CreatorType.COLLABORATION:
         project_context["participants"] = _collect_participant_entries(ctx, creator, project, get_creator)
         project_context["collaboration"] = _collect_collaborator_entries(ctx, creator)
     else:
@@ -433,14 +697,14 @@ def _collect_project_context(ctx: HtmlBuildContext, creator: Dict, project: Dict
     return project_context
 
 
-def _build_project_page(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator):
+def _build_project_page(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator, domain: Domain):
     logger.info(f"Building project page: {creator['name']} - {project['title']}")
 
     template = env.get_template("project.html.j2")
 
     output_html = template.render(
         html_settings=ctx.html_settings,
-        project=_collect_project_context(ctx, creator, project, get_creator),
+        project=_collect_project_context(ctx, creator, project, get_creator, domain),
         gallery_image_max_height=ctx.get_thumb_height(ThumbType.GALLERY),
         path_to_root=HTML_PATH_TO_ROOT,
         Orientation=Orientation,
@@ -527,11 +791,13 @@ def _collect_creator_context(ctx: HtmlBuildContext, creator: Dict, get_creator, 
     context = {
         "type": creator["type"],
         "name": creator["name"],
-        "aliases": creator["aliases"] if CreatorField.ALIASES in visible else [],
-        "nationality": creator["nationality"] if CreatorField.NATIONALITY in visible else "",
         "rel_portrait_path": path_utils.relative_path_from(thumb_path, ctx.output_dir).as_posix(),
         "portrait_orientation": image_utils.infer_image_orientation(thumb_path),
-        "active_since": date_utils.format_nice_date(creator["active_since"]) if CreatorField.ACTIVE_SINCE in visible else "",
+        "profile_meta": _build_creator_profile_meta_entries(
+            creator,
+            visible,
+            members_label=ctx.html_settings["creator_page_members_title"],
+        ),
         "info_html": text_utils.markdown_to_html(creator["info"]),
         "tag_map": _group_tags_by_category(_collect_tags_from_creator(creator), ctx.fallback_tag_category),
         "projects": _build_project_entries(ctx, creator),
@@ -540,20 +806,10 @@ def _collect_creator_context(ctx: HtmlBuildContext, creator: Dict, get_creator, 
         "creator_stats": creator_stats,
     }
     
-    if creator["type"] == "collaboration":
-        collab = creator["collaboration"]
+    if creator["type"] == CreatorType.COLLABORATION:
         context["members"] = _collect_member_links(ctx, creator, get_creator)
-        context["member_names"] = collab["members"] if CreatorField.MEMBERS in visible else []
-        context["founding_date"] = date_utils.format_nice_date(collab["founding_date"]) if CreatorField.FOUNDING_DATE in visible else ""
-        context["dissolution_date"] = date_utils.format_nice_date(collab["dissolution_date"]) if CreatorField.DISSOLUTION_DATE in visible else ""
     else:
-        person = creator["person"]
-        context["civil_name"] = person["civil_name"] if CreatorField.CIVIL_NAME in visible else ""
-        context["date_of_birth"] = date_utils.format_nice_date(person["date_of_birth"]) if CreatorField.DATE_OF_BIRTH in visible else ""
-        context["date_of_death"] = date_utils.format_nice_date(person["date_of_death"]) if CreatorField.DATE_OF_DEATH in visible else ""
-        
-        raw_age = _calculate_debut_age(creator) if CreatorField.DEBUT_AGE in visible else None
-        context["debut_age"] = date_utils.format_age(raw_age)
+        context["members"] = []
 
     return context
 
@@ -585,7 +841,7 @@ def _collect_member_links(ctx: HtmlBuildContext, creator: Dict, get_creator) -> 
     Builds a list of dictionaries representing links to member creators
     in a collaboration, including name, html path, and thumbnail path.
     """
-    if creator["type"] != "collaboration":
+    if creator["type"] != CreatorType.COLLABORATION:
         return []
 
     member_links = []
@@ -638,9 +894,9 @@ def _build_creator_overview_page(ctx: HtmlBuildContext, creator_entries: List[Di
         f.write(output_html)
 
 
-def _validate_creator(creator: Dict) -> Dict:
+def _validate_creator(creator: Dict, domain: Domain = Domain.CREATOR) -> Dict:
     try:
-        return CreatorSchema(**creator)
+        return CreatorSchema.model_validate(creator, context={"domain": domain})
     except ValidationError as e:
         name = creator.get("name", "<unknown>")
         error_lines = [f"[{name}] {err['loc'][0]}: {err['msg']}" for err in e.errors()]
@@ -648,9 +904,9 @@ def _validate_creator(creator: Dict) -> Dict:
         raise ValueError(f"Validation failed for creator '{name}':\n{formatted}")
 
 
-def _load_validated_creator(json_path: Path) -> Dict:
+def _load_validated_creator(json_path: Path, domain: Domain = Domain.CREATOR) -> Dict:
     raw_data = json_utils.load_json(json_path)
-    return _validate_creator(raw_data).model_dump()
+    return _validate_creator(raw_data, domain).model_dump(mode="json")
 
 
 def _build_creator_metadata_index(input_dir: Path) -> Dict[str, Path]:
@@ -684,7 +940,7 @@ def _build_creator_metadata_index(input_dir: Path) -> Dict[str, Path]:
     return creator_dirs
 
 
-def _get_creator_loader(creator_dirs: Dict[str, Path]) -> Tuple[Any, Dict[str, Dict[str, Any]]]:
+def _get_creator_loader(creator_dirs: Dict[str, Path], domain: Domain) -> Tuple[Any, Dict[str, Dict[str, Any]]]:
     cache: Dict[str, Dict[str, Any]] = {}
 
     def loader(name: str) -> Optional[Dict[str, Any]]:
@@ -699,7 +955,7 @@ def _get_creator_loader(creator_dirs: Dict[str, Path]) -> Tuple[Any, Dict[str, D
         if not json_path.exists():
             return None
 
-        creator = _load_validated_creator(json_path)
+        creator = _load_validated_creator(json_path, domain)
         cache[name] = creator
         return creator
 
@@ -753,40 +1009,42 @@ def _prepare_output_dirs(ctx: HtmlBuildContext) -> None:
     ctx.thumbs_dir.mkdir(parents=True, exist_ok=True)
 
 
-def build_html_pages(input_dir: Path, output_dir: Path, html_settings: Dict) -> Path:
+def build_html_pages(input_dir: Path, output_dir: Path, html_settings: Dict, domain: Domain = Domain.CREATOR) -> Path:
     ctx = HtmlBuildContext(input_dir, output_dir, html_settings)
 
     _prepare_output_dirs(ctx)
     _prepare_static_assets(ctx)
 
     creator_dirs = _build_creator_metadata_index(ctx.input_dir)
-    get_creator, cache = _get_creator_loader(creator_dirs)
+    get_creator, cache = _get_creator_loader(creator_dirs, domain)
 
     creator_entries: List[Dict[str, Any]] = []
     project_entries: List[Dict[str, Any]] = []
     all_tags: List[str] = []
+    failures: List[tuple[str, Exception]] = []
 
     for creator_name in sorted(creator_dirs):
         creator_dir = creator_dirs[creator_name]
         json_path = creator_dir / CR4TE_JSON_FILE_NAME
 
         try:
-            creator = _load_validated_creator(json_path)
-        except Exception:
+            creator = _load_validated_creator(json_path, domain)
+            cache[creator_name] = creator
+
+            creator_stats = _compute_creator_stats(creator)
+            _build_creator_page(ctx, creator, get_creator, creator_stats)
+
+            for project in sorted(creator["projects"], key=_sort_project):
+                _build_project_page(ctx, creator, project, get_creator, domain)
+                project_entries.append(_build_project_summary_entry(ctx, creator, project))
+
+            creator_entries.append(_build_creator_summary_entry(ctx, creator, creator_stats))
+            all_tags.extend(_collect_tags_from_creator(creator))
+
+        except Exception as e:
             logger.exception(f"{creator_dir.name}: failed to process")
+            failures.append((creator_dir.name, e))
             continue
-
-        cache[creator_name] = creator
-
-        creator_stats = _compute_creator_stats(creator)
-        _build_creator_page(ctx, creator, get_creator, creator_stats)
-
-        for project in sorted(creator["projects"], key=_sort_project):
-            _build_project_page(ctx, creator, project, get_creator)
-            project_entries.append(_build_project_summary_entry(ctx, creator, project))
-
-        creator_entries.append(_build_creator_summary_entry(ctx, creator, creator_stats))
-        all_tags.extend(_collect_tags_from_creator(creator))
 
     creator_entries.sort(key=lambda e: e["name"].lower())
     project_entries.sort(key=lambda e: (e["title"].lower(), e["creator_name"].lower()))
@@ -794,6 +1052,14 @@ def build_html_pages(input_dir: Path, output_dir: Path, html_settings: Dict) -> 
     _build_creator_overview_page(ctx, creator_entries)
     _build_project_overview_page(ctx, project_entries)
     _build_tags_page(ctx, all_tags)
+
+    if failures:
+        logger.error(
+            "HTML build completed with %s succeeded creator(s) and %s failed creator(s).",
+            len(creator_entries),
+            len(failures),
+        )
+        raise ValueError(format_build_failures("HTML build", failures))
 
     return ctx.index_html_path
 

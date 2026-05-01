@@ -12,7 +12,7 @@ from .enums.image_sample_strategy import ImageSampleStrategy
 from .enums.portrait_strategy import PortraitStrategy
 from .enums.domain import Domain
 from .html_builder import clear_output_folder, build_html_pages
-from .json_builder import build_creator_json_files, clean_creator_json_files
+from .json_builder import build_creator_json_files, clean_creator_json_files, load_global_state, save_global_state, clean_global_state
 
 # Short flags
 FLAG_INPUT_SHORT = "-i"
@@ -44,14 +44,42 @@ def _confirm_action(prompt: str, force: bool = False) -> bool:
     confirm = input(f"{prompt} [y/N]: ").strip().lower()
     return confirm == 'y'
     
-def _apply_cli_overrides_from_args(config: dict, args) -> dict:
+def _apply_cli_overrides_from_args(config: dict, args, domain: Optional[Domain] = None) -> dict:
+    resolved_domain = domain if domain is not None else (Domain(args.domain) if getattr(args, "domain", None) else None)
     return apply_cli_overrides(
         config,
         image_sample_strategy=ImageSampleStrategy(args.image_sample_strategy) if args.image_sample_strategy else None,
         portrait_strategy=PortraitStrategy(args.portrait_strategy) if args.portrait_strategy else None,
-        domain=Domain(args.domain) if args.domain else None
+        domain=resolved_domain
     )
-    
+
+def _resolve_domain(cli_domain: Optional[Domain], saved_domain: Optional[Domain], force: bool) -> Domain:
+    default_domain = Domain.CREATOR
+
+    if cli_domain is None:
+        return saved_domain if saved_domain else default_domain
+
+    if saved_domain is None:
+        logging.info(f"Domain set to '{cli_domain.value}'.")
+        return cli_domain
+
+    if cli_domain == saved_domain:
+        return cli_domain
+
+    prompt = (
+        f"You are switching from domain '{saved_domain.value}' "
+        f"to '{cli_domain.value}'.\n\n"
+        "WARNING: this may permanently invalidate saved input data in cr4te.json files.\n\n"
+        "Do you want to continue?"
+    )
+
+    if _confirm_action(prompt, force=force):
+        logging.info(f"Domain set to '{cli_domain.value}'.")
+        return cli_domain
+
+    logging.info(f"Keeping domain '{saved_domain.value}'.")
+    return saved_domain
+
 def _create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Media Organizer CLI")
     
@@ -93,7 +121,6 @@ def _create_parser() -> argparse.ArgumentParser:
     
 def _build_cmd_handler(args):
     config = _load_config(args.config)
-    config = _apply_cli_overrides_from_args(config, args)
 
     input_dir = Path(args.input).resolve()
     if not input_dir.is_dir():
@@ -101,13 +128,24 @@ def _build_cmd_handler(args):
         logging.info("Aborting.")
         return
 
+    # Load validated global state to get saved domain
+    global_state = load_global_state(input_dir)
+    saved_domain = global_state.domain if global_state else None
+
+    cli_domain = Domain(args.domain) if args.domain else None
+    final_domain = _resolve_domain(cli_domain, saved_domain, args.force)
+
+    # Apply CLI overrides with the resolved domain
+    config = _apply_cli_overrides_from_args(config, args, domain=final_domain)
+
     output_dir = Path(args.output).resolve()
 
     if output_dir.exists():
-        msg = (
-            f"Output folder '{output_dir}' exists. "
-            f"Delete everything {'INCLUDING thumbnails' if args.clean else 'except thumbnails'}?"
-        )
+        if args.clean:
+            msg = f"This will delete all output in '{output_dir}', including thumbnails. Continue?"
+        else:
+            msg = f"Clear existing output except thumbnails in '{output_dir}'?"
+
         if not _confirm_action(msg, force=args.force):
             logging.info("Aborting.")
             return
@@ -117,10 +155,12 @@ def _build_cmd_handler(args):
         output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info("Building JSON metadata...")
-    build_creator_json_files(input_dir, config["media_rules"])
+    build_creator_json_files(input_dir, config["media_rules"], final_domain, saved_domain)
 
     logging.info("Building HTML site...")
-    index_html_path = build_html_pages(input_dir, output_dir, config["html_settings"])
+    index_html_path = build_html_pages(input_dir, output_dir, config["html_settings"], final_domain)
+
+    save_global_state(input_dir, final_domain)
 
     if args.open:
         logging.info("Opening index.html...")
@@ -144,6 +184,7 @@ def _clean_json_cmd_handler(args):
         return
 
     clean_creator_json_files(input_dir, dry_run=args.dry_run)
+    clean_global_state(input_dir, dry_run=args.dry_run)
 
 def main():
     _setup_logging()

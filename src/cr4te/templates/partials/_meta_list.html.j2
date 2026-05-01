@@ -1,0 +1,18 @@
+{% macro render_meta_list(path_to_root, entries) %}
+  <div class="meta-list">
+    {% for entry in entries %}
+      <div class="meta-label">{{ entry.label }}:</div>
+      <div class="meta-value">
+        {% if entry.render == "list" %}
+          {% for item in entry.value %}
+            <div>{{ item }}</div>
+          {% endfor %}
+        {% elif entry.url %}
+          <a href="{{ path_to_root }}{{ entry.url }}">{{ entry.value | join(", ") }}</a>
+        {% else %}
+          {{ entry.value | join(", ") }}
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endmacro %}

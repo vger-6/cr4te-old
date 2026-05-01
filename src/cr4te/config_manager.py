@@ -21,23 +21,23 @@ __all__ = ["load_config", "apply_cli_overrides"]
 # === Default internal config ===
 DEFAULT_CONFIG = {
     "html_settings": {
-        "nav_creators_label": "Artists",
-        "nav_projects_label": "Works",
+        "nav_creators_label": "Creators",
+        "nav_projects_label": "Projects",
         "nav_tags_label": "Tags",
         
         "fallback_tag_category": "Other",
         
-        "creator_overview_page_title": "Artists",
-        "creator_overview_page_search_placeholder": "Search artists, works, tags...",
+        "creator_overview_page_title": "Creators",
+        "creator_overview_page_search_placeholder": "Search creators, projects, tags...",
         
-        "project_overview_page_title": "Works",
-        "project_overview_page_search_placeholder": "Search works, tags...",
+        "project_overview_page_title": "Projects",
+        "project_overview_page_search_placeholder": "Search projects, tags...",
         
         "creator_page_profile_title": "Profile",
         "creator_page_about_title": "About",
         "creator_page_tags_title": "Tags",
         "creator_page_members_title": "Members",
-        "creator_page_projects_title": "Works",
+        "creator_page_projects_title": "Projects",
         "creator_page_collabs_title_prefix": "With",
               
         "project_page_overview_title": "Overview",
@@ -113,11 +113,12 @@ def load_config(user_config_path: Path = None) -> Dict:
 
     return config
        
-def apply_cli_overrides(config: Dict, image_sample_strategy: Optional[ImageSampleStrategy] = None, portrait_strategy: Optional[PortraitStrategy] = PortraitStrategy.NAMED , domain: Optional[Domain] = None) -> Dict:
+def apply_cli_overrides(config: Dict, image_sample_strategy: Optional[ImageSampleStrategy] = None, portrait_strategy: Optional[PortraitStrategy] = None, domain: Optional[Domain] = None) -> Dict:
     if domain is not None:
         preset = _get_preset(domain)
         config["html_settings"].update(preset["html_settings"])
         config["media_rules"].update(preset["media_rules"])
+
     if image_sample_strategy is not None:
         config["html_settings"]["image_gallery_sample_strategy"] = image_sample_strategy
       
@@ -142,6 +143,11 @@ def _get_preset(domain: Domain) -> Dict:
     including labels, media ordering, and gallery settings.
     """
     match domain:
+        case Domain.CREATOR:
+            return {
+                "html_settings": {},
+                "media_rules": {},
+            }
         case Domain.FILM:
             return {
                 "html_settings": {
@@ -153,7 +159,6 @@ def _get_preset(domain: Domain) -> Dict:
                     "project_overview_page_search_placeholder": "Search movies, tags...",
                     "creator_page_projects_title": "Movies",
                     "project_page_audio_section_base_title": "Soundtrack",
-                    "creator_page_collabs_title_prefix": "Codirected with",
                     "project_gallery_aspect_ratio": "2/3",
                  },
                "media_rules": {},
@@ -168,16 +173,27 @@ def _get_preset(domain: Domain) -> Dict:
                     "project_overview_page_title": "Albums",
                     "project_overview_page_search_placeholder": "Search albums, tags...",
                     "creator_page_projects_title": "Albums",
-                    "creator_page_collabs_title_prefix": "With",
                     "project_page_audio_section_base_title": "Tracks",
                     "media_type_order": [MediaType.AUDIO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT, MediaType.VIDEO],
-                    "project_gallery_building_strategy": ImageGalleryBuildingStrategy.ASPECT,
                     "project_gallery_aspect_ratio": "1/1",
                 },
                "media_rules": {},
             }
         case Domain.ART:
-            return {"html_settings": {}, "media_rules": {}}
+            return {
+                "html_settings": {
+                    "nav_creators_label": "Artists",
+                    "nav_projects_label": "Works",
+                    "creator_overview_page_title": "Artists",
+                    "creator_overview_page_search_placeholder": "Search artists, works, tags...",
+                    "project_overview_page_title": "Works",
+                    "project_overview_page_search_placeholder": "Search works, tags...",
+                    "creator_page_projects_title": "Works",
+                    "media_type_order": [MediaType.AUDIO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT, MediaType.VIDEO],
+                    "project_gallery_aspect_ratio": "1/1",
+                },
+               "media_rules": {},
+            }
         case Domain.BOOK:
             return {
                 "html_settings": {
@@ -189,9 +205,7 @@ def _get_preset(domain: Domain) -> Dict:
                     "project_overview_page_search_placeholder": "Search books, tags...",
                     "creator_page_projects_title": "Books",
                     "project_page_audio_section_base_title": "Audio",
-                    "creator_page_collabs_title_prefix": "With",
                     "media_type_order": [MediaType.DOCUMENT, MediaType.AUDIO, MediaType.IMAGE, MediaType.TEXT, MediaType.VIDEO],
-                    "project_gallery_building_strategy": ImageGalleryBuildingStrategy.ASPECT,
                     "project_gallery_aspect_ratio": "1000/1414",
                 },
                "media_rules": {},
