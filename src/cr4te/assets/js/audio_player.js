@@ -117,9 +117,8 @@
   }
 
   function setVolume(input) {
-    const audio = input.closest(".audio-gallery").querySelector("audio");
-    audio.volume = input.value;
-    input.style.backgroundSize = `${input.value * 100}% 100%`;
+    const volume = window.utils.saveMediaVolume(input.value);
+    window.utils.applyMediaVolume(volume);
   }
 
   function updateProgress(audio) {
@@ -132,7 +131,7 @@
     const percent = (audio.currentTime / audio.duration) * 100;
     if (bar) {
       bar.value = percent || 0;
-      bar.style.backgroundSize = `${percent}% 100%`;
+      window.utils.setRangeFill(bar);
     }
 
     if (timeDisplay) {
@@ -159,7 +158,7 @@
       bar.disabled = !isEnabled;
       if (!isEnabled) {
         bar.value = 0;
-        bar.style.backgroundSize = "0% 100%";
+        window.utils.setRangeFill(bar);
       }
     }
   }
@@ -229,15 +228,15 @@
 
       bar.addEventListener("mousedown", () => { isSeeking = true; });
       bar.addEventListener("touchstart", () => { isSeeking = true; });
+      bar.addEventListener("input", () => { window.utils.setRangeFill(bar); });
       bar.addEventListener("mouseup", () => { isSeeking = false; });
       bar.addEventListener("touchend", () => { isSeeking = false; });
       bar.addEventListener("mouseleave", () => { isSeeking = false; });
       bar.addEventListener("blur", () => { isSeeking = false; });
+      window.utils.setRangeFill(bar);
     });
 
-    document.querySelectorAll(".audio-gallery .volume-slider").forEach(slider => {
-      slider.style.backgroundSize = `${slider.value * 100}% 100%`;
-    });
+    window.utils.applyMediaVolume();
 
     const audioSections = document.querySelectorAll('.section-box.audio-gallery-section');
     const threshold = 100;

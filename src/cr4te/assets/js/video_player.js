@@ -28,9 +28,8 @@
   }
 
   function setVideoVolume(input) {
-    const video = input.closest(".video-wrapper").querySelector("video");
-    video.volume = input.value;
-    input.style.backgroundSize = `${input.value * 100}% 100%`;
+    const volume = window.utils.saveMediaVolume(input.value);
+    window.utils.applyMediaVolume(volume);
   }
 
   function toggleFullscreen(btn) {
@@ -53,7 +52,7 @@
     const percent = (video.currentTime / video.duration) * 100;
     if (bar) {
       bar.value = percent || 0;
-      bar.style.backgroundSize = `${percent}% 100%`;
+      window.utils.setRangeFill(bar);
     }
 
     const format = sec => window.utils.formatTime(sec);
@@ -75,7 +74,7 @@
         bar.disabled = false;
         const percent = (video.currentTime / video.duration) * 100;
         bar.value = percent || 0;
-        bar.style.backgroundSize = `${percent}% 100%`;
+        window.utils.setRangeFill(bar);
       }
 
       const display = wrapper.querySelector(".time-display");
@@ -114,9 +113,7 @@
     });
   });
 
-  document.querySelectorAll(".video-wrapper .volume-slider").forEach(slider => {
-    slider.style.backgroundSize = `${slider.value * 100}% 100%`;
-  });
+  window.utils.applyMediaVolume();
 
   document.querySelectorAll(".video-wrapper").forEach(wrapper => {
     let hideTimeout;
@@ -171,8 +168,10 @@
       bar.addEventListener("mouseup", () => { isVideoSeeking = false; });
       bar.addEventListener("touchstart", () => { isVideoSeeking = true; });
       bar.addEventListener("touchend", () => { isVideoSeeking = false; });
+      bar.addEventListener("input", () => { window.utils.setRangeFill(bar); });
       bar.addEventListener("mouseleave", () => { isVideoSeeking = false; });
       bar.addEventListener("blur", () => { isVideoSeeking = false; });
+      window.utils.setRangeFill(bar);
     });
   });
 

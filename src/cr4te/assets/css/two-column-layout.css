@@ -31,6 +31,8 @@
 }
 
 .two-column-layout {
+  --two-column-layout-gap: 1rem;
+
   display: flex;
   gap: var(--two-column-layout-gap);
   height: 100%;

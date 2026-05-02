@@ -21,8 +21,8 @@
   --two-column-layout-column-border-color: transparent;
   --two-column-layout-column-border-thickness: 0;
 
-  --hover-background-color: #2ec8e6;
-  --hover-text-color: #002633;
+  --hover-background-color: #1f4660;
+  --hover-text-color: #d9f2ff;
 
   --selected-background-color: #2ec8e6;
   --selected-text-color: #002633;
@@ -70,13 +70,20 @@
   --audio-controls-background-color: #162d42;
   --audio-controls-border-color: #55bcd7;
   --audio-controls-wrapper-background-color: #162d42;
+  --media-slider-track-color: #24465d;
+  --media-slider-fill-color: #2ec8e6;
+  --media-slider-thumb-color: #e0faff;
+  --media-slider-thumb-border-color: #82e9de;
+  --media-slider-disabled-track-color: #1d3549;
+  --media-slider-disabled-fill-color: #669ea6;
+  --media-slider-focus-color: rgba(46, 200, 230, 0.35);
   
   --pagination-controls-background-color: #162d42;
   --pagination-controls-button-background-color: #162d42;
   --pagination-controls-wrapper-background-color: #162d42;
 
   --track-odd-color: #18374f;
-  --track-even-color: #1f4660;
+  --track-even-color: #18374f;
 
   --icon-fill-color: #d9f2ff;
   --icon-hover-fill-color: #d9f2ff;
@@ -108,8 +115,8 @@
   --two-column-layout-column-border-color: transparent;
   --two-column-layout-column-border-thickness: 0;
 
-  --hover-background-color: #cccccc;
-  --hover-text-color: #102014;
+  --hover-background-color: #2e5a5f;
+  --hover-text-color: #d8e5dd;
 
   --selected-background-color: #cccccc;
   --selected-text-color: #102014;
@@ -157,6 +164,13 @@
   --audio-controls-background-color: #1c3a3e;
   --audio-controls-border-color: #3f6b66;
   --audio-controls-wrapper-background-color: #1c3a3e;
+  --media-slider-track-color: #2b4742;
+  --media-slider-fill-color: #a8dadc;
+  --media-slider-thumb-color: #fefae0;
+  --media-slider-thumb-border-color: #88a39a;
+  --media-slider-disabled-track-color: #263f3d;
+  --media-slider-disabled-fill-color: #5e7770;
+  --media-slider-focus-color: rgba(168, 218, 220, 0.3);
   
   --pagination-controls-background-color: #1c3a3e;
   --pagination-controls-button-background-color: #1c3a3e;
@@ -171,4 +185,3 @@
   --scrollbar-color: #2e5a5f;
   --scrollbar-thumb-color: #88a39a;
 }
-
