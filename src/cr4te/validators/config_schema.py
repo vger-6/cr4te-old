@@ -10,30 +10,20 @@ from ..enums.visible_fields import CreatorField, ProjectField
 
 # HTML settings schema
 class HtmlSettings(BaseModel):
-    nav_creators_label: str
-    nav_projects_label: str
-    nav_tags_label: str
-
-    creator_overview_page_title: str
-    creator_overview_page_search_placeholder: str
-
-    project_overview_page_title: str
-    project_overview_page_search_placeholder: str
+    creators_label: str
+    projects_label: str
+    tags_label: str
+    search_label: str
 
     creator_page_profile_title: str
     creator_page_about_title: str
-    creator_page_tags_title: str
     creator_page_members_title: str
-    creator_page_projects_title: str
     creator_page_collabs_title_prefix: str
 
     project_page_overview_title: str
     project_page_description_title: str
-    project_page_tags_title: str
     project_page_audio_section_base_title: str
     project_page_image_section_base_title: str
-
-    tags_page_title: str
     
     image_gallery_sample_max: conint(ge=0)
     image_gallery_sample_strategy: ImageSampleStrategy
@@ -46,9 +36,9 @@ class HtmlSettings(BaseModel):
     project_gallery_building_strategy: ImageGalleryBuildingStrategy
     project_gallery_aspect_ratio: str
     
-    creator_overview_page_creator_gallery_page_size: conint(ge=0)
+    creator_overview_gallery_page_size: conint(ge=0)
     
-    project_overview_page_project_gallery_page_size: conint(ge=0)
+    project_overview_gallery_page_size: conint(ge=0)
     
     creator_page_visible_fields: List[CreatorField]
     creator_page_image_gallery_page_size: conint(ge=0)

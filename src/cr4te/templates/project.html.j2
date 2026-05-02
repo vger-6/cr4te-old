@@ -9,6 +9,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ project.title }}</title>
+  {% include "partials/_favicon.html.j2" %}
   <link rel="stylesheet" href="{{ path_to_root }}assets/css/base.css">
   <link rel="stylesheet" href="{{ path_to_root }}assets/css/theme.css">
   <link rel="stylesheet" href="{{ path_to_root }}assets/css/two-column-layout.css">
@@ -20,9 +21,9 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <a href="{{ path_to_root }}index.html">{{ html_settings.nav_creators_label }}</a> &middot;
-      <a href="{{ path_to_root }}projects.html">{{ html_settings.nav_projects_label }}</a> &middot;
-      <a href="{{ path_to_root }}tags.html">{{ html_settings.nav_tags_label }}</a> &middot;
+      <a href="{{ path_to_root }}index.html">{{ html_settings.creators_label }}</a> &middot;
+      <a href="{{ path_to_root }}projects.html">{{ html_settings.projects_label }}</a> &middot;
+      <a href="{{ path_to_root }}tags.html">{{ html_settings.tags_label }}</a> &middot;
       <a href="{{ path_to_root }}{{ creator_base.rel_html_path }}">{{ creator_base.name }}</a>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
@@ -123,7 +124,7 @@
       <div class="original-placeholder" data-mobile-target="5">
         {% if project.tag_map %}
           <div class="section-box">
-            <div class="section-title">{{ html_settings.project_page_tags_title }}</div>
+            <div class="section-title">{{ html_settings.tags_label }}</div>
             <hr>
             <div class="section-content tag-list">
               {% for category, tags in project.tag_map.items() %}

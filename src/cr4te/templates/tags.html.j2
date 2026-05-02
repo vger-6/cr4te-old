@@ -4,7 +4,8 @@
   <style>body { display: none; }</style>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ html_settings.tags_page_title }}</title>
+  <title>{{ html_settings.tags_label }}</title>
+  {% include "partials/_favicon.html.j2" %}
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/theme.css">
   <link rel="stylesheet" href="assets/css/overview-layout.css">
@@ -14,13 +15,13 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <a href="index.html">{{ html_settings.nav_creators_label }}</a> &middot;
-      <a href="projects.html">{{ html_settings.nav_projects_label }}</a> &middot;
-      <span class="nav-current">{{ html_settings.nav_tags_label }}</span>
+      <a href="index.html">{{ html_settings.creators_label }}</a> &middot;
+      <a href="projects.html">{{ html_settings.projects_label }}</a> &middot;
+      <span class="nav-current">{{ html_settings.tags_label }}</span>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
 
-    <h1>{{ html_settings.tags_page_title }}</h1>
+    <h1>{{ html_settings.tags_label }}</h1>
   </div>
 
   <div class="overview-layout">

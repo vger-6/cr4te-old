@@ -7,7 +7,8 @@
   <style>body { display: none; }</style>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ html_settings.project_overview_page_title }}</title>
+  <title>{{ html_settings.projects_label }}</title>
+  {% include "partials/_favicon.html.j2" %}
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/overview-layout.css">
   <link rel="stylesheet" href="assets/css/theme.css">
@@ -17,16 +18,16 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <a href="index.html">{{ html_settings.nav_creators_label }}</a> &middot;
-      <span class="nav-current">{{ html_settings.nav_projects_label }}</span> &middot;
-      <a href="tags.html">{{ html_settings.nav_tags_label }}</a>
+      <a href="index.html">{{ html_settings.creators_label }}</a> &middot;
+      <span class="nav-current">{{ html_settings.projects_label }}</span> &middot;
+      <a href="tags.html">{{ html_settings.tags_label }}</a>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
 
-    <h1>{{ html_settings.project_overview_page_title }}</h1>
+    <h1>{{ html_settings.projects_label }}</h1>
   </div>
 
-  {% set search_text_placeholder = html_settings.project_overview_page_search_placeholder %}
+  {% set search_text_placeholder = html_settings.search_label ~ html_settings.creators_label | lower ~ ", " ~ html_settings.projects_label | lower ~ ", " ~ html_settings.tags_label | lower ~ "..." %}
   {% include "partials/_search_bar.html.j2" %}
 
   <div class="overview-layout">
@@ -39,7 +40,7 @@
         <div class="{{ image_gallery_class }}"
              id="imageGallery"
              data-image-max-height="{{ gallery_image_max_height }}"
-             data-page-size="{{ html_settings.project_overview_page_project_gallery_page_size }}"
+             data-page-size="{{ html_settings.project_overview_gallery_page_size }}"
              data-aspect-ratio="{{ aspect_ratio }}">
           {% for project in projects %}
           <div class="image-wrapper image-card"

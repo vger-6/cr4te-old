@@ -21,32 +21,22 @@ __all__ = ["load_config", "apply_cli_overrides"]
 # === Default internal config ===
 DEFAULT_CONFIG = {
     "html_settings": {
-        "nav_creators_label": "Creators",
-        "nav_projects_label": "Projects",
-        "nav_tags_label": "Tags",
+        "creators_label": "Creators",
+        "projects_label": "Projects",
+        "tags_label": "Tags",
+        "search_label": "Search ",
         
         "fallback_tag_category": "Other",
         
-        "creator_overview_page_title": "Creators",
-        "creator_overview_page_search_placeholder": "Search creators, projects, tags...",
-        
-        "project_overview_page_title": "Projects",
-        "project_overview_page_search_placeholder": "Search projects, tags...",
-        
         "creator_page_profile_title": "Profile",
         "creator_page_about_title": "About",
-        "creator_page_tags_title": "Tags",
         "creator_page_members_title": "Members",
-        "creator_page_projects_title": "Projects",
         "creator_page_collabs_title_prefix": "With",
               
         "project_page_overview_title": "Overview",
         "project_page_description_title": "Description",
-        "project_page_tags_title": "Tags",
         "project_page_audio_section_base_title": "Audio",
         "project_page_image_section_base_title": "Images",
-        
-        "tags_page_title": "Tags",
         
         "image_gallery_sample_max": 20,
         "image_gallery_sample_strategy": ImageSampleStrategy.SPREAD,
@@ -59,9 +49,9 @@ DEFAULT_CONFIG = {
         "project_gallery_building_strategy": ImageGalleryBuildingStrategy.ASPECT,
         "project_gallery_aspect_ratio": "3/2",
         
-        "creator_overview_page_creator_gallery_page_size": 100,
+        "creator_overview_gallery_page_size": 100,
         
-        "project_overview_page_project_gallery_page_size": 100,
+        "project_overview_gallery_page_size": 100,
         
         "creator_page_visible_fields": [f for f in CreatorField],
         "creator_page_image_gallery_page_size" : 15,
@@ -151,13 +141,8 @@ def _get_preset(domain: Domain) -> Dict:
         case Domain.FILM:
             return {
                 "html_settings": {
-                    "nav_creators_label": "Directors",
-                    "nav_projects_label": "Movies",
-                    "creator_overview_page_title": "Directors",
-                    "creator_overview_page_search_placeholder": "Search directors, movies, tags...",
-                    "project_overview_page_title": "Movies",
-                    "project_overview_page_search_placeholder": "Search movies, tags...",
-                    "creator_page_projects_title": "Movies",
+                    "creators_label": "Directors",
+                    "projects_label": "Movies",
                     "project_page_audio_section_base_title": "Soundtrack",
                     "project_gallery_aspect_ratio": "2/3",
                  },
@@ -166,13 +151,8 @@ def _get_preset(domain: Domain) -> Dict:
         case Domain.MUSIC:
             return {
                 "html_settings": {
-                    "nav_creators_label": "Musicians",
-                    "nav_projects_label": "Albums",
-                    "creator_overview_page_title": "Musicians",
-                    "creator_overview_page_search_placeholder": "Search musicians, albums, tags...",
-                    "project_overview_page_title": "Albums",
-                    "project_overview_page_search_placeholder": "Search albums, tags...",
-                    "creator_page_projects_title": "Albums",
+                    "creators_label": "Musicians",
+                    "projects_label": "Albums",
                     "project_page_audio_section_base_title": "Tracks",
                     "media_type_order": [MediaType.AUDIO, MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT],
                     "project_gallery_aspect_ratio": "1/1",
@@ -182,13 +162,8 @@ def _get_preset(domain: Domain) -> Dict:
         case Domain.ART:
             return {
                 "html_settings": {
-                    "nav_creators_label": "Artists",
-                    "nav_projects_label": "Works",
-                    "creator_overview_page_title": "Artists",
-                    "creator_overview_page_search_placeholder": "Search artists, works, tags...",
-                    "project_overview_page_title": "Works",
-                    "project_overview_page_search_placeholder": "Search works, tags...",
-                    "creator_page_projects_title": "Works",
+                    "creators_label": "Artists",
+                    "projects_label": "Works",
                     "media_type_order": [MediaType.IMAGE, MediaType.VIDEO, MediaType.AUDIO, MediaType.DOCUMENT, MediaType.TEXT],
                     "project_gallery_aspect_ratio": "1/1",
                 },
@@ -197,13 +172,8 @@ def _get_preset(domain: Domain) -> Dict:
         case Domain.BOOK:
             return {
                 "html_settings": {
-                    "nav_creators_label": "Author",
-                    "nav_projects_label": "Books",
-                    "creator_overview_page_title": "Author",
-                    "creator_overview_page_search_placeholder": "Search author, books, tags...",
-                    "project_overview_page_title": "Books",
-                    "project_overview_page_search_placeholder": "Search books, tags...",
-                    "creator_page_projects_title": "Books",
+                    "creators_label": "Authors",
+                    "projects_label": "Books",
                     "project_page_audio_section_base_title": "Audio",
                     "media_type_order": [MediaType.DOCUMENT, MediaType.AUDIO, MediaType.IMAGE, MediaType.VIDEO, MediaType.TEXT],
                     "project_gallery_aspect_ratio": "1000/1414",
@@ -213,13 +183,8 @@ def _get_preset(domain: Domain) -> Dict:
         case Domain.MODEL:
             return {
                 "html_settings": {
-                    "nav_creators_label": "Models",
-                    "nav_projects_label": "Scenes",
-                    "creator_overview_page_title": "Models",
-                    "creator_overview_page_search_placeholder": "Search models, scenes, tags...",
-                    "project_overview_page_title": "Scenes",
-                    "project_overview_page_search_placeholder": "Search scenes, tags...",
-                    "creator_page_projects_title": "Scenes",
+                    "creators_label": "Models",
+                    "projects_label": "Scenes",
                     "creator_page_collabs_title_prefix": "Scenes with",
                     "creator_page_members_title": "Featuring",
                     "media_type_order": [MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT, MediaType.AUDIO],

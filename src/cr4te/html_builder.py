@@ -12,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import ValidationError
 
 from .constants import (
+    CR4TE_FAVICON_PATH,
     CR4TE_CSS_DIR,
     CR4TE_JS_DIR,
     CR4TE_TEMPLATES_DIR,
@@ -991,6 +992,7 @@ def _build_project_summary_entry(ctx: HtmlBuildContext, creator: Dict[str, Any],
 def _prepare_static_assets(ctx: HtmlBuildContext) -> None:
     shutil.copytree(CR4TE_CSS_DIR, ctx.css_dir, dirs_exist_ok=True)
     shutil.copytree(CR4TE_JS_DIR, ctx.js_dir, dirs_exist_ok=True)
+    shutil.copy2(CR4TE_FAVICON_PATH, ctx.output_dir / "assets" / CR4TE_FAVICON_PATH.name)
 
     ctx.defaults_dir.mkdir(parents=True, exist_ok=True)
     th = ctx.get_thumb_height(ThumbType.THUMB)

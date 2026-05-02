@@ -2,15 +2,12 @@
 
 {# ------------------------------------------------------------------ #}
 {# Internal helper to render a list of badge definitions              #}
-{# Each item: (count, icon_macro, singular_label, plural_label)       #}
+{# Each item: (count, icon_macro)                                      #}
 {# ------------------------------------------------------------------ #}
 {% macro _render_badges(items) %}
-  {% for count, icon, singular, plural in items %}
+  {% for count, icon in items %}
     {% if count > 0 %}
-      {% set label = count ~ ' ' ~ (singular if count == 1 else plural) %}
-      <span class="media-badge"
-            title="{{ label }}"
-            aria-label="{{ label }}">
+      <span class="media-badge">
         {{ icon() }}
         <span class="media-count">{{ count }}</span>
       </span>
@@ -27,11 +24,11 @@
   {% if total > 0 %}
     <div class="media-type-badges">
       {% set items = [
-        (media_counts.video, icons.video_icon, 'video', 'videos'),
-        (media_counts.audio, icons.audio_icon, 'audio track', 'audio tracks'),
-        (media_counts.image, icons.image_icon, 'image', 'images'),
-        (media_counts.document, icons.document_icon, 'document', 'documents'),
-        (media_counts.text, icons.text_icon, 'text file', 'text files')
+        (media_counts.video, icons.video_icon),
+        (media_counts.audio, icons.audio_icon),
+        (media_counts.image, icons.image_icon),
+        (media_counts.document, icons.document_icon),
+        (media_counts.text, icons.text_icon)
       ] %}
       {{ _render_badges(items) }}
     </div>
@@ -41,18 +38,18 @@
 {# ------------------------------------------------------------------ #}
 {# Creator badges (includes project count)                            #}
 {# ------------------------------------------------------------------ #}
-{% macro creator_badges(project_count, media_counts, project_label) %}
+{% macro creator_badges(project_count, media_counts) %}
   {% set total_media = media_counts.values() | sum %}
 
   {% if project_count > 0 or total_media > 0 %}
     <div class="media-type-badges">
       {% set items = [
-        (project_count, icons.folder_icon, project_label, project_label ~ 's'),
-        (media_counts.video, icons.video_icon, 'video', 'videos'),
-        (media_counts.audio, icons.audio_icon, 'audio track', 'audio tracks'),
-        (media_counts.image, icons.image_icon, 'image', 'images'),
-        (media_counts.document, icons.document_icon, 'document', 'documents'),
-        (media_counts.text, icons.text_icon, 'text file', 'text files')
+        (project_count, icons.folder_icon),
+        (media_counts.video, icons.video_icon),
+        (media_counts.audio, icons.audio_icon),
+        (media_counts.image, icons.image_icon),
+        (media_counts.document, icons.document_icon),
+        (media_counts.text, icons.text_icon)
       ] %}
       {{ _render_badges(items) }}
     </div>
