@@ -7,7 +7,7 @@
   <style>body { display: none; }</style>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ html_settings.projects_label }}</title>
+  <title>{{ labels.projects }}</title>
   {% include "partials/_favicon.html.j2" %}
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/overview-layout.css">
@@ -18,29 +18,29 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <a href="index.html">{{ html_settings.creators_label }}</a> &middot;
-      <span class="nav-current">{{ html_settings.projects_label }}</span> &middot;
-      <a href="tags.html">{{ html_settings.tags_label }}</a>
+      <a href="index.html">{{ labels.creators }}</a> &middot;
+      <span class="nav-current">{{ labels.projects }}</span> &middot;
+      <a href="tags.html">{{ labels.tags }}</a>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
 
-    <h1>{{ html_settings.projects_label }}</h1>
+    <h1>{{ labels.projects }}</h1>
   </div>
 
-  {% set search_text_placeholder = html_settings.search_label ~ html_settings.creators_label | lower ~ ", " ~ html_settings.projects_label | lower ~ ", " ~ html_settings.tags_label | lower ~ "..." %}
+  {% set search_text_placeholder = labels.search ~ labels.creators | lower ~ ", " ~ labels.projects | lower ~ ", " ~ labels.tags | lower ~ "..." %}
   {% include "partials/_search_bar.html.j2" %}
 
   <div class="overview-layout">
 
-    {% set image_gallery_class = utils.get_image_gallery_class(ImageGalleryBuildingStrategy, html_settings.project_gallery_building_strategy) %}
-    {% set aspect_ratio = html_settings.project_gallery_aspect_ratio or '1/1' %}
+    {% set image_gallery_class = utils.get_image_gallery_class(ImageGalleryBuildingStrategy, display.project_gallery.building_strategy) %}
+    {% set aspect_ratio = display.project_gallery.aspect_ratio or '1/1' %}
 
     <div class="section-box">
       <div class="section-content">
         <div class="{{ image_gallery_class }}"
              id="imageGallery"
              data-image-max-height="{{ gallery_image_max_height }}"
-             data-page-size="{{ html_settings.project_overview_gallery_page_size }}"
+             data-page-size="{{ display.pagination.project_overview_gallery_page_size }}"
              data-aspect-ratio="{{ aspect_ratio }}">
           {% for project in projects %}
           <div class="image-wrapper image-card"

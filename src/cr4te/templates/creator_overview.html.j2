@@ -7,7 +7,7 @@
   <style>body { display: none; }</style>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ html_settings.creators_label }}</title>
+  <title>{{ labels.creators }}</title>
   {% include "partials/_favicon.html.j2" %}
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/overview-layout.css">
@@ -18,20 +18,20 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <span class="nav-current">{{ html_settings.creators_label }}</span> &middot;
-      <a href="projects.html">{{ html_settings.projects_label }}</a> &middot;
-      <a href="tags.html">{{ html_settings.tags_label }}</a>
+      <span class="nav-current">{{ labels.creators }}</span> &middot;
+      <a href="projects.html">{{ labels.projects }}</a> &middot;
+      <a href="tags.html">{{ labels.tags }}</a>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
 
-    <h1>{{ html_settings.creators_label }}</h1>
+    <h1>{{ labels.creators }}</h1>
   </div>
 
-  {% set search_text_placeholder = html_settings.search_label ~ html_settings.creators_label | lower ~ ", " ~ html_settings.projects_label | lower ~ ", " ~ html_settings.tags_label | lower ~ "..." %}
+  {% set search_text_placeholder = labels.search ~ labels.creators | lower ~ ", " ~ labels.projects | lower ~ ", " ~ labels.tags | lower ~ "..." %}
   {% include "partials/_search_bar.html.j2" %}
 
-  {% set image_gallery_class = utils.get_image_gallery_class(ImageGalleryBuildingStrategy, html_settings.creator_gallery_building_strategy) %}
-  {% set aspect_ratio = html_settings.creator_gallery_aspect_ratio or '1/1' %}
+  {% set image_gallery_class = utils.get_image_gallery_class(ImageGalleryBuildingStrategy, display.creator_gallery.building_strategy) %}
+  {% set aspect_ratio = display.creator_gallery.aspect_ratio or '1/1' %}
   <div class="overview-layout">
 
     <div class="section-box">
@@ -39,7 +39,7 @@
         <div class="{{ image_gallery_class }}"
              id="imageGallery"
              data-image-max-height="{{ gallery_image_max_height }}"
-             data-page-size="{{ html_settings.creator_overview_gallery_page_size }}"
+             data-page-size="{{ display.pagination.creator_overview_gallery_page_size }}"
              data-aspect-ratio="{{ aspect_ratio }}">
           {% for creator in creator_entries %}
           <div class="image-wrapper image-card" 
@@ -47,7 +47,7 @@
                data-width="{{ creator.image_wrapper_width }}"
                data-height="{{ creator.image_wrapper_height }}">
             <a href="{{ creator.rel_html_path }}" title="{{ creator.name }}">
-              {% if not html_settings.hide_portraits %}
+              {% if not display.hide_portraits %}
                 <img src="{{ creator.rel_thumbnail_path }}" alt="Poster for {{ creator.name }}" loading="lazy">
                 {{ media_badges.creator_badges(creator.project_count, creator.media_counts) }}
               {% endif %}

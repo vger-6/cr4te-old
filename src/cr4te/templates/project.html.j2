@@ -21,9 +21,9 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <a href="{{ path_to_root }}index.html">{{ html_settings.creators_label }}</a> &middot;
-      <a href="{{ path_to_root }}projects.html">{{ html_settings.projects_label }}</a> &middot;
-      <a href="{{ path_to_root }}tags.html">{{ html_settings.tags_label }}</a> &middot;
+      <a href="{{ path_to_root }}index.html">{{ labels.creators }}</a> &middot;
+      <a href="{{ path_to_root }}projects.html">{{ labels.projects }}</a> &middot;
+      <a href="{{ path_to_root }}tags.html">{{ labels.tags }}</a> &middot;
       <a href="{{ path_to_root }}{{ creator_base.rel_html_path }}">{{ creator_base.name }}</a>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
@@ -37,7 +37,7 @@
 
       <div class="original-placeholder" data-mobile-target="1">
         <div class="section-box">
-          <div class="section-title">{{ html_settings.project_page_overview_title }}</div>
+          <div class="section-title">{{ labels.sections.overview }}</div>
           <hr>
           <div class="section-content markdown">
             <div class="info-block {{ utils.get_info_block_layout(Orientation, project.thumbnail_orientation) }}">
@@ -51,7 +51,7 @@
 
         {% if project.info_html %}
           <div class="section-box markdown">
-            <div class="section-title">{{ html_settings.project_page_description_title }}</div>
+            <div class="section-title">{{ labels.sections.description }}</div>
             <hr>
             <div class="section-content text-content">
               {{ project.info_html | safe }}
@@ -69,7 +69,7 @@
             <hr>
             <div class="section-content">
               <div class="info-block info-block--row">
-                {% if not html_settings.hide_portraits %}
+                {% if not display.hide_portraits %}
                   <a href="{{ path_to_root }}{{ creator.rel_portrait_path }}" class="single-lightbox" data-lightbox-single="true">
                     <img src="{{ path_to_root }}{{ creator.rel_portrait_path }}" alt="Portrait of {{ creator.name }}">
                   </a>
@@ -90,7 +90,7 @@
             <hr>
             <div class="section-content">
               <div class="info-block info-block--row">
-                {% if not html_settings.hide_portraits %}
+                {% if not display.hide_portraits %}
                   <a href="{{ path_to_root }}{{ collaboration.rel_portrait_path }}" class="single-lightbox" data-lightbox-single="true">
                     <img src="{{ path_to_root }}{{ collaboration.rel_portrait_path }}" alt="Portrait of {{ collaboration.name }}">
                   </a>
@@ -109,7 +109,7 @@
               <hr>
               <div class="section-content">
                 <div class="info-block info-block--row">
-                  {% if not html_settings.hide_portraits %}
+                  {% if not display.hide_portraits %}
                     <a href="{{ path_to_root }}{{ participant.rel_portrait_path }}" class="single-lightbox" data-lightbox-single="true">
                       <img src="{{ path_to_root }}{{ participant.rel_portrait_path}}" alt="Portrait of {{ participant.name }}">
                     </a>
@@ -124,7 +124,7 @@
       <div class="original-placeholder" data-mobile-target="5">
         {% if project.tag_map %}
           <div class="section-box">
-            <div class="section-title">{{ html_settings.tags_label }}</div>
+            <div class="section-title">{{ labels.tags }}</div>
             <hr>
             <div class="section-content tag-list">
               {% for category, tags in project.tag_map.items() %}
@@ -145,7 +145,7 @@
 
     <div class="right-column">
 
-      {{ media_macros.render_media_groups(path_to_root, project.media_groups, gallery_image_max_height, html_settings.project_page_image_gallery_page_size) }}
+      {{ media_macros.render_media_groups(path_to_root, project.media_groups, gallery_image_max_height, display.pagination.project_page_image_gallery_page_size) }}
       
       <div class="mobile-placeholder" data-mobile-target="1"></div>
       <div class="mobile-placeholder" data-mobile-target="2"></div>

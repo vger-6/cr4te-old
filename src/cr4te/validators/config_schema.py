@@ -1,58 +1,106 @@
-from typing import List
+from typing import Dict, List
 import re
 
-from pydantic import BaseModel, conint, validator
+from pydantic import BaseModel, ConfigDict, Field, conint, validator
 
 from ..enums.image_sample_strategy import ImageSampleStrategy
 from ..enums.image_gallery_building_strategy import ImageGalleryBuildingStrategy
 from ..enums.media_type import MediaType
 from ..enums.visible_fields import CreatorField, ProjectField
 
-# HTML settings schema
-class HtmlSettings(BaseModel):
-    creators_label: str
-    projects_label: str
-    tags_label: str
-    search_label: str
+# Site schema
+class SectionLabels(BaseModel):
+    profile: str
+    about: str
+    members: str
+    collabs_title_prefix: str
+    overview: str
+    description: str
+    audio: str
+    images: str
 
-    creator_page_profile_title: str
-    creator_page_about_title: str
-    creator_page_members_title: str
-    creator_page_collabs_title_prefix: str
 
-    project_page_overview_title: str
-    project_page_description_title: str
-    project_page_audio_section_base_title: str
-    project_page_image_section_base_title: str
-    
+class FallbackImageLabels(BaseModel):
+    thumb: str
+    portrait: str
+    cover: str
+
+
+class MetadataLabels(BaseModel):
+    __pydantic_extra__: Dict[str, str] = Field(init=False)
+
+    model_config = ConfigDict(extra="allow")
+
+    title: str
+    release_date: str
+    name: str
+    civil_name: str
+    aliases: str
+    born: str
+    died: str
+    debut_age: str
+    age_at_time: str
+    founded: str
+    dissolved: str
+    nationality: str
+    active_since: str
+
+
+class SiteLabels(BaseModel):
+    creators: str
+    projects: str
+    tags: str
+    themes: str
+    search: str
+    fallback_tag_category: str
+    sections: SectionLabels
+    fallback_images: FallbackImageLabels
+    metadata: MetadataLabels
+
+
+class GalleryDisplay(BaseModel):
+    building_strategy: ImageGalleryBuildingStrategy
+    aspect_ratio: str
+
+
+class PaginationDisplay(BaseModel):
+    creator_overview_gallery_page_size: conint(ge=0)
+    project_overview_gallery_page_size: conint(ge=0)
+    creator_page_image_gallery_page_size: conint(ge=0)
+    project_page_image_gallery_page_size: conint(ge=0)
+
+
+class VisibleFieldsDisplay(BaseModel):
+    creator_page: List[CreatorField]
+    project_page: List[ProjectField]
+
+
+class SiteDisplay(BaseModel):
     image_gallery_sample_max: conint(ge=0)
     image_gallery_sample_strategy: ImageSampleStrategy
-    
     media_type_order: List[MediaType]
-    
-    creator_gallery_building_strategy: ImageGalleryBuildingStrategy
-    creator_gallery_aspect_ratio: str
-    
-    project_gallery_building_strategy: ImageGalleryBuildingStrategy
-    project_gallery_aspect_ratio: str
-    
-    creator_overview_gallery_page_size: conint(ge=0)
-    
-    project_overview_gallery_page_size: conint(ge=0)
-    
-    creator_page_visible_fields: List[CreatorField]
-    creator_page_image_gallery_page_size: conint(ge=0)
-    
-    project_page_visible_fields: List[ProjectField]
-    project_page_image_gallery_page_size: conint(ge=0)
-    
     hide_portraits: bool
-    
-    @validator('project_gallery_aspect_ratio', 'creator_gallery_aspect_ratio')
+    creator_gallery: GalleryDisplay
+    project_gallery: GalleryDisplay
+    pagination: PaginationDisplay
+    visible_fields: VisibleFieldsDisplay
+
+
+class SiteConfig(BaseModel):
+    labels: SiteLabels
+    display: SiteDisplay
+
+    @validator('display')
+    def validate_gallery_aspect_ratios(cls, v):
+        for aspect_ratio in (v.creator_gallery.aspect_ratio, v.project_gallery.aspect_ratio):
+            cls.validate_aspect_ratio_colon_format(aspect_ratio)
+        return v
+
+    @classmethod
     def validate_aspect_ratio_colon_format(cls, v):
         match = re.match(r'^(\d+)/(\d+)$', v.strip())
         if not match:
-            raise ValueError("Aspect ratio must be in the format 'w:h' (e.g., '4/3')")
+            raise ValueError("Aspect ratio must be in the format 'w/h' (e.g., '4/3')")
         w, h = map(int, match.groups())
         if w <= 0 or h <= 0:
             raise ValueError("Aspect ratio values must be greater than zero")
@@ -70,6 +118,6 @@ class MediaRules(BaseModel):
 
 # Top-level config schema
 class AppConfig(BaseModel):
-    html_settings: HtmlSettings
+    site: SiteConfig
     media_rules: MediaRules
 
