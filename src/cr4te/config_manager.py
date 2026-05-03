@@ -20,77 +20,46 @@ __all__ = ["load_config", "apply_cli_overrides"]
 
 # === Default internal config ===
 DEFAULT_CONFIG = {
-    "site": {
-        "labels": {
-            "creators": "Creators",
-            "projects": "Projects",
-            "tags": "Tags",
-            "themes": "Themes",
-            "search": "Search ",
-            "fallback_tag_category": "Other",
-            "sections": {
-                "profile": "Profile",
-                "about": "About",
-                "members": "Members",
-                "collabs_title_prefix": "with",
-                "overview": "Overview",
-                "description": "Description",
-                "audio": "Audio",
-                "images": "Images",
-            },
-            "fallback_images": {
-                "thumb": "Thumb",
-                "portrait": "Portrait",
-                "cover": "Cover",
-            },
-            "metadata": {
-                "title": "Title",
-                "release_date": "Release Date",
-                "name": "Name",
-                "civil_name": "Civil Name",
-                "aliases": "Aliases",
-                "born": "Born",
-                "died": "Died",
-                "debut_age": "Debut Age",
-                "age_at_time": "Age at Time",
-                "founded": "Founded",
-                "dissolved": "Dissolved",
-                "nationality": "Nationality",
-                "active_since": "Active Since",
-                "makeup_artists": "Makeup Artists",
-                "isbns": "ISBNs",
-                "citations": "Citations",
-                "cover_artists": "Cover Artists",
-                "actors": "Actors",
-                "score_composers": "Score Composers",
-                "visual_effects": "Visual Effects",
-                "costume_designers": "Costume Designers",
-            },
-        },
-        "display": {
-            "image_gallery_sample_max": 20,
-            "image_gallery_sample_strategy": ImageSampleStrategy.SPREAD,
-            "media_type_order": [MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT],
-            "hide_portraits": False,
-            "creator_gallery": {
-                "building_strategy": ImageGalleryBuildingStrategy.ASPECT,
-                "aspect_ratio": "2/3",
-            },
-            "project_gallery": {
-                "building_strategy": ImageGalleryBuildingStrategy.ASPECT,
-                "aspect_ratio": "3/2",
-            },
-            "pagination": {
-                "creator_overview_gallery_page_size": 100,
-                "project_overview_gallery_page_size": 100,
-                "creator_page_image_gallery_page_size": 15,
-                "project_page_image_gallery_page_size": 15,
-            },
-            "visible_fields": {
-                "creator_page": [f for f in CreatorField],
-                "project_page": [f for f in ProjectField],
-            },
-        },
+    "html_settings": {
+        "creators_label": "Creators",
+        "projects_label": "Projects",
+        "tags_label": "Tags",
+        "search_label": "Search ",
+        
+        "fallback_tag_category": "Other",
+        
+        "creator_page_profile_title": "Profile",
+        "creator_page_about_title": "About",
+        "creator_page_members_title": "Members",
+        "creator_page_collabs_title_prefix": "With",
+              
+        "project_page_overview_title": "Overview",
+        "project_page_description_title": "Description",
+        "project_page_audio_section_base_title": "Audio",
+        "project_page_image_section_base_title": "Images",
+        
+        "image_gallery_sample_max": 20,
+        "image_gallery_sample_strategy": ImageSampleStrategy.SPREAD,
+        
+        "media_type_order": [MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT],
+        
+        "creator_gallery_building_strategy": ImageGalleryBuildingStrategy.ASPECT,
+        "creator_gallery_aspect_ratio": "2/3",
+        
+        "project_gallery_building_strategy": ImageGalleryBuildingStrategy.ASPECT,
+        "project_gallery_aspect_ratio": "3/2",
+        
+        "creator_overview_gallery_page_size": 100,
+        
+        "project_overview_gallery_page_size": 100,
+        
+        "creator_page_visible_fields": [f for f in CreatorField],
+        "creator_page_image_gallery_page_size" : 15,
+
+        "project_page_visible_fields": [f for f in ProjectField],
+        "project_page_image_gallery_page_size" : 15,
+        
+        "hide_portraits": False,
     },
     "media_rules": {   
         "max_search_depth": 5,
@@ -107,19 +76,9 @@ DEFAULT_CONFIG = {
     }
 }
 
-
-def _deep_update(base: Dict, overrides: Dict) -> Dict:
-    for key, value in overrides.items():
-        if isinstance(value, dict) and isinstance(base.get(key), dict):
-            _deep_update(base[key], value)
-        else:
-            base[key] = value
-    return base
-
-
-def _validate_config(config: Dict) -> Dict:
+def _validate_config(config: Dict) -> None:
     try:
-        return AppConfig(**config).model_dump(mode="python")
+        AppConfig(**config)
     except ValidationError as e:
         error_lines = [f"[AppConfig] {' > '.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()]
         formatted = "\n".join(error_lines)
@@ -131,8 +90,8 @@ def load_config(user_config_path: Path = None) -> Dict:
     if user_config_path:
         try:
             user_config = load_json(user_config_path)
-            _deep_update(config["site"], user_config.get("site", {}))
-            _deep_update(config["media_rules"], user_config.get("media_rules", {}))
+            config["html_settings"].update(user_config.get("html_settings", {}))
+            config["media_rules"].update(user_config.get("media_rules", {}))
             logger.info(f"Loaded configuration from {user_config_path}")
         except Exception as e:
             logger.warning(
@@ -140,31 +99,33 @@ def load_config(user_config_path: Path = None) -> Dict:
                 "Proceeding with default internal configuration."
             )
 
-    return _validate_config(config)
+    _validate_config(config)
+
+    return config
        
 def apply_cli_overrides(config: Dict, image_sample_strategy: Optional[ImageSampleStrategy] = None, portrait_strategy: Optional[PortraitStrategy] = None, domain: Optional[Domain] = None) -> Dict:
-    config = copy.deepcopy(config)
-
     if domain is not None:
         preset = _get_preset(domain)
-        _deep_update(config["site"], preset["site"])
-        _deep_update(config["media_rules"], preset["media_rules"])
+        config["html_settings"].update(preset["html_settings"])
+        config["media_rules"].update(preset["media_rules"])
 
     if image_sample_strategy is not None:
-        config["site"]["display"]["image_gallery_sample_strategy"] = image_sample_strategy
+        config["html_settings"]["image_gallery_sample_strategy"] = image_sample_strategy
       
     match portrait_strategy:
         case PortraitStrategy.NONE:
             config["media_rules"]["auto_find_portraits"] = False
-            config["site"]["display"]["hide_portraits"] = True
+            config["html_settings"]["hide_portraits"] = True
         case PortraitStrategy.NAMED:
             config["media_rules"]["auto_find_portraits"] = False
-            config["site"]["display"]["hide_portraits"] = False
+            config["html_settings"]["hide_portraits"] = False
         case PortraitStrategy.AUTO:
             config["media_rules"]["auto_find_portraits"] = True
-            config["site"]["display"]["hide_portraits"] = False
+            config["html_settings"]["hide_portraits"] = False
     
-    return _validate_config(config)
+    _validate_config(config)
+
+    return config
  
 def _get_preset(domain: Domain) -> Dict:
     """
@@ -174,100 +135,61 @@ def _get_preset(domain: Domain) -> Dict:
     match domain:
         case Domain.CREATOR:
             return {
-                "site": {},
+                "html_settings": {},
                 "media_rules": {},
             }
         case Domain.FILM:
             return {
-                "site": {
-                    "labels": {
-                        "creators": "Directors",
-                        "projects": "Movies",
-                        "sections": {
-                            "audio": "Soundtrack",
-                        },
-                        "metadata": {
-                            "actors": "Cast",
-                        },
-                    },
-                    "display": {
-                        "project_gallery": {
-                            "aspect_ratio": "2/3",
-                        },
-                    },
-                },
-                "media_rules": {},
+                "html_settings": {
+                    "creators_label": "Directors",
+                    "projects_label": "Movies",
+                    "project_page_audio_section_base_title": "Soundtrack",
+                    "project_gallery_aspect_ratio": "2/3",
+                 },
+               "media_rules": {},
             }
         case Domain.MUSIC:
             return {
-                "site": {
-                    "labels": {
-                        "creators": "Musicians",
-                        "projects": "Albums",
-                        "sections": {
-                            "audio": "Tracks",
-                        },
-                    },
-                    "display": {
-                        "media_type_order": [MediaType.AUDIO, MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT],
-                        "project_gallery": {
-                            "aspect_ratio": "1/1",
-                        },
-                    },
+                "html_settings": {
+                    "creators_label": "Musicians",
+                    "projects_label": "Albums",
+                    "project_page_audio_section_base_title": "Tracks",
+                    "media_type_order": [MediaType.AUDIO, MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT],
+                    "project_gallery_aspect_ratio": "1/1",
                 },
-                "media_rules": {},
+               "media_rules": {},
             }
         case Domain.ART:
             return {
-                "site": {
-                    "labels": {
-                        "creators": "Artists",
-                        "projects": "Works",
-                    },
-                    "display": {
-                        "media_type_order": [MediaType.IMAGE, MediaType.VIDEO, MediaType.AUDIO, MediaType.DOCUMENT, MediaType.TEXT],
-                        "project_gallery": {
-                            "aspect_ratio": "1/1",
-                        },
-                    },
+                "html_settings": {
+                    "creators_label": "Artists",
+                    "projects_label": "Works",
+                    "media_type_order": [MediaType.IMAGE, MediaType.VIDEO, MediaType.AUDIO, MediaType.DOCUMENT, MediaType.TEXT],
+                    "project_gallery_aspect_ratio": "1/1",
                 },
-                "media_rules": {},
+               "media_rules": {},
             }
         case Domain.BOOK:
             return {
-                "site": {
-                    "labels": {
-                        "creators": "Authors",
-                        "projects": "Books",
-                        "sections": {
-                            "audio": "Audio",
-                        },
-                    },
-                    "display": {
-                        "media_type_order": [MediaType.DOCUMENT, MediaType.AUDIO, MediaType.IMAGE, MediaType.VIDEO, MediaType.TEXT],
-                        "project_gallery": {
-                            "aspect_ratio": "1000/1414",
-                        },
-                    },
+                "html_settings": {
+                    "creators_label": "Authors",
+                    "projects_label": "Books",
+                    "project_page_audio_section_base_title": "Audio",
+                    "media_type_order": [MediaType.DOCUMENT, MediaType.AUDIO, MediaType.IMAGE, MediaType.VIDEO, MediaType.TEXT],
+                    "project_gallery_aspect_ratio": "1000/1414",
                 },
-                "media_rules": {},
+               "media_rules": {},
             }
         case Domain.MODEL:
             return {
-                "site": {
-                    "labels": {
-                        "creators": "Models",
-                        "projects": "Scenes",
-                        "sections": {
-                            "collabs_title_prefix": "with",
-                            "members": "Featuring",
-                        },
-                    },
-                    "display": {
-                        "media_type_order": [MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT, MediaType.AUDIO],
-                    },
+                "html_settings": {
+                    "creators_label": "Models",
+                    "projects_label": "Scenes",
+                    "creator_page_collabs_title_prefix": "Scenes with",
+                    "creator_page_members_title": "Featuring",
+                    "media_type_order": [MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT, MediaType.AUDIO],
                 },
-                "media_rules": {},
+               "media_rules": {},
             }
         case _:
             raise ValueError(f"Unknown domain: {domain}")

@@ -48,12 +48,23 @@ class RenderMode(str, Enum):
 
 
 DOMAIN_META_CONFIG_OVERRIDES = {
-    Domain.MODEL: {},
-    Domain.BOOK: {},
-    Domain.FILM: {
-        "actors": {"render": RenderMode.LIST},
+    Domain.MODEL: {
+        "makeup_artists": {"label": "Makeup Artists"},
     },
-    Domain.MUSIC: {},
+    Domain.BOOK: {
+        "isbns": {"label": "ISBNs"},
+        "citations": {"label": "Citations"},
+        "cover_artists": {"label": "Cover Artists"},
+    },
+    Domain.FILM: {
+        "actors": {"label": "Cast", "render": RenderMode.LIST},
+        "score_composers": {"label": "Score Composers"},
+        "visual_effects": {"label": "Visual Effects"},
+        "costume_designers": {"label": "Costume Designers"},
+    },
+    Domain.MUSIC: {
+        "cover_artists": {"label": "Cover Artists"},
+    },
     Domain.ART: {},
 }
 
@@ -61,6 +72,7 @@ DOMAIN_META_CONFIG_OVERRIDES = {
 def _default_domain_meta_config(domain: Domain) -> Dict[str, Dict[str, str]]:
     return {
         field_name: {
+            "label": field_name.replace("_", " ").title(),
             "render": RenderMode.INLINE,
         }
         for field_name in get_domain_meta_model(domain).model_fields
@@ -279,7 +291,7 @@ def _compact_meta_entries(entries: Iterable[Optional[Dict[str, Any]]]) -> List[D
     ]
 
 
-def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any], labels: Dict[str, str]) -> List[Dict[str, Any]]:
+def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     entries = []
     config = DOMAIN_META_CONFIG.get(domain, {})
 
@@ -290,7 +302,7 @@ def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any], labe
             continue
 
         field_config = config.get(field_name, {})
-        label = labels.get(field_name) or field_name.replace("_", " ").title()
+        label = field_config.get("label") or field_name.replace("_", " ").title()
         render_mode = field_config.get("render", RenderMode.INLINE)
 
         entries.append({
@@ -302,13 +314,13 @@ def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any], labe
     return entries
 
 
-def _build_project_meta_entries(domain: Domain, project: Dict[str, Any], release_date: str, labels: Dict[str, str]) -> List[Dict[str, Any]]:
-    entries = [_build_meta_entry(labels["title"], project["title"])]
+def _build_project_meta_entries(domain: Domain, project: Dict[str, Any], release_date: str) -> List[Dict[str, Any]]:
+    entries = [_build_meta_entry("Title", project["title"])]
 
     if release_date:
-        entries.append(_build_meta_entry(labels["release_date"], release_date))
+        entries.append(_build_meta_entry("Release Date", release_date))
 
-    entries.extend(_build_domain_meta_entries(domain, project.get("domain_meta", {}), labels))
+    entries.extend(_build_domain_meta_entries(domain, project.get("domain_meta", {})))
     return _compact_meta_entries(entries)
 
 
@@ -373,8 +385,7 @@ def _build_project_overview_page(ctx: HtmlBuildContext, project_entries: List[Di
 
     rendered = template.render(
         projects=project_entries,
-        labels=ctx.labels,
-        display=ctx.display,
+        html_settings=ctx.html_settings,
         gallery_image_max_height=ctx.get_thumb_height(ThumbType.THUMB),
         ImageGalleryBuildingStrategy=ImageGalleryBuildingStrategy,
     )
@@ -416,8 +427,7 @@ def _build_tags_page(ctx: HtmlBuildContext, tags: List[str]):
     template = env.get_template("tags.html.j2")
 
     output_html = template.render(
-        labels=ctx.labels,
-        display=ctx.display,
+        html_settings=ctx.html_settings,
         tags=_group_tags_by_category(tags, ctx.fallback_tag_category),
     )
 
@@ -536,17 +546,16 @@ def _build_person_meta_entries(
     visible: Set[CreatorField],
     project: Optional[Dict],
     field_order: Sequence[CreatorField],
-    labels: Dict[str, str],
 ) -> List[Dict[str, Any]]:
     person = creator["person"]
     entries = []
 
     field_builders = {
-        CreatorField.CIVIL_NAME: lambda: _build_meta_entry(labels["civil_name"], person["civil_name"]),
-        CreatorField.ALIASES: lambda: _build_meta_entry(labels["aliases"], creator["aliases"]),
-        CreatorField.DATE_OF_BIRTH: lambda: _build_meta_entry(labels["born"], date_utils.format_nice_date(person["date_of_birth"])),
-        CreatorField.DATE_OF_DEATH: lambda: _build_meta_entry(labels["died"], date_utils.format_nice_date(person["date_of_death"])),
-        CreatorField.DEBUT_AGE: lambda: _build_meta_entry(labels["debut_age"], date_utils.format_age(_calculate_debut_age(creator))),
+        CreatorField.CIVIL_NAME: lambda: _build_meta_entry("Civil Name", person["civil_name"]),
+        CreatorField.ALIASES: lambda: _build_meta_entry("Aliases", creator["aliases"]),
+        CreatorField.DATE_OF_BIRTH: lambda: _build_meta_entry("Born", date_utils.format_nice_date(person["date_of_birth"])),
+        CreatorField.DATE_OF_DEATH: lambda: _build_meta_entry("Died", date_utils.format_nice_date(person["date_of_death"])),
+        CreatorField.DEBUT_AGE: lambda: _build_meta_entry("Debut Age", date_utils.format_age(_calculate_debut_age(creator))),
     }
 
     for field in field_order:
@@ -554,7 +563,7 @@ def _build_person_meta_entries(
             entries.append(field_builders[field]())
 
     if project is not None and CreatorField.AGE_AT_TIME in visible:
-        entries.append(_build_meta_entry(labels["age_at_time"], date_utils.format_age(_calculate_age_at_release(creator, project))))
+        entries.append(_build_meta_entry("Age at Time", date_utils.format_age(_calculate_age_at_release(creator, project))))
 
     return entries
 
@@ -564,15 +573,14 @@ def _build_collaboration_meta_entries(
     visible: Set[CreatorField],
     members_label: str,
     field_order: Sequence[CreatorField],
-    labels: Dict[str, str],
 ) -> List[Dict[str, Any]]:
     collab = creator["collaboration"]
     entries = []
 
     field_builders = {
         CreatorField.MEMBERS: lambda: _build_meta_entry(members_label, collab["members"], RenderMode.LIST),
-        CreatorField.FOUNDING_DATE: lambda: _build_meta_entry(labels["founded"], date_utils.format_nice_date(collab["founding_date"])),
-        CreatorField.DISSOLUTION_DATE: lambda: _build_meta_entry(labels["dissolved"], date_utils.format_nice_date(collab["dissolution_date"])),
+        CreatorField.FOUNDING_DATE: lambda: _build_meta_entry("Founded", date_utils.format_nice_date(collab["founding_date"])),
+        CreatorField.DISSOLUTION_DATE: lambda: _build_meta_entry("Dissolved", date_utils.format_nice_date(collab["dissolution_date"])),
     }
 
     for field in field_order:
@@ -586,11 +594,10 @@ def _build_shared_creator_meta_entries(
     creator: Dict,
     visible: Set[CreatorField],
     field_order: Sequence[CreatorField],
-    labels: Dict[str, str],
 ) -> List[Dict[str, Any]]:
     field_builders = {
-        CreatorField.NATIONALITY: lambda: _build_meta_entry(labels["nationality"], creator["nationality"]),
-        CreatorField.ACTIVE_SINCE: lambda: _build_meta_entry(labels["active_since"], date_utils.format_nice_date(creator["active_since"])),
+        CreatorField.NATIONALITY: lambda: _build_meta_entry("Nationality", creator["nationality"]),
+        CreatorField.ACTIVE_SINCE: lambda: _build_meta_entry("Active Since", date_utils.format_nice_date(creator["active_since"])),
     }
 
     return [
@@ -603,21 +610,20 @@ def _build_shared_creator_meta_entries(
 def _build_creator_profile_meta_entries(
     creator: Dict,
     visible: Set[CreatorField],
-    labels: Dict[str, str],
     project: Optional[Dict] = None,
     link: Optional[str] = None,
     members_label: str = "Members",
     profile_fields: Optional[Sequence[CreatorField]] = None,
 ) -> List[Dict[str, Any]]:
     field_order = profile_fields or DEFAULT_CREATOR_FIELD_ORDER
-    entries = [_build_meta_entry(labels["name"], creator["name"], url=link)]
+    entries = [_build_meta_entry("Name", creator["name"], url=link)]
 
     if creator["type"] == CreatorType.PERSON:
-        entries.extend(_build_person_meta_entries(creator, visible, project, field_order, labels))
+        entries.extend(_build_person_meta_entries(creator, visible, project, field_order))
     else:
-        entries.extend(_build_collaboration_meta_entries(creator, visible, members_label, field_order, labels))
+        entries.extend(_build_collaboration_meta_entries(creator, visible, members_label, field_order))
 
-    entries.extend(_build_shared_creator_meta_entries(creator, visible, field_order, labels))
+    entries.extend(_build_shared_creator_meta_entries(creator, visible, field_order))
 
     return _compact_meta_entries(entries)
 
@@ -645,33 +651,31 @@ def _collect_creator_base_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[
 
 def _collect_creator_entries(ctx: HtmlBuildContext, creator: Dict, project: Dict) -> Dict[str, Any]:
     entries = _collect_creator_base_entries(ctx, creator)
-    visible = set(ctx.creator_page_visible_fields)
+    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
     entries["profile_meta"] = _build_creator_profile_meta_entries(
         creator,
         visible,
         project=project,
         link=entries["rel_html_path"],
-        members_label=ctx.section_labels.members,
-        labels=ctx.metadata_labels,
+        members_label=ctx.html_settings["creator_page_members_title"],
     )
     return entries
 
 
 def _collect_collaborator_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[str, Any]:
     entries = _collect_creator_base_entries(ctx, creator)
-    visible = set(ctx.creator_page_visible_fields)
+    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
     entries["profile_meta"] = _build_creator_profile_meta_entries(
         creator,
         visible,
         link=entries["rel_html_path"],
-        members_label=ctx.section_labels.members,
-        labels=ctx.metadata_labels,
+        members_label=ctx.html_settings["creator_page_members_title"],
     )
     return entries
 
 
 def _collect_project_context(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator, domain: Domain) -> Dict:
-    visible = set(ctx.project_page_visible_fields)
+    visible = set(ctx.html_settings.get("project_page_visible_fields", []))
     thumb_path = _resolve_thumbnail_or_default(ctx, project["cover"], ThumbType.COVER)
     release_date = date_utils.format_nice_date(project["release_date"]) if ProjectField.RELEASE_DATE in visible else ""
 
@@ -681,7 +685,7 @@ def _collect_project_context(ctx: HtmlBuildContext, creator: Dict, project: Dict
         "thumbnail_orientation": image_utils.infer_image_orientation(thumb_path),
         "info_html": text_utils.markdown_to_html(project["info"]),
         "tag_map": _group_tags_by_category(project["tags"], ctx.fallback_tag_category),
-        "meta": _build_project_meta_entries(domain, project, release_date, ctx.metadata_labels),
+        "meta": _build_project_meta_entries(domain, project, release_date),
         "media_groups": _build_media_groups_context(ctx, project["media_groups"]),
     }
 
@@ -700,8 +704,7 @@ def _build_project_page(ctx: HtmlBuildContext, creator: Dict, project: Dict, get
     template = env.get_template("project.html.j2")
 
     output_html = template.render(
-        labels=ctx.labels,
-        display=ctx.display,
+        html_settings=ctx.html_settings,
         project=_collect_project_context(ctx, creator, project, get_creator, domain),
         gallery_image_max_height=ctx.get_thumb_height(ThumbType.GALLERY),
         path_to_root=HTML_PATH_TO_ROOT,
@@ -783,7 +786,7 @@ def _collect_creator_context(ctx: HtmlBuildContext, creator: Dict, get_creator, 
     Builds the context dictionary for rendering a creator's page,
     including metadata, portrait, projects, collaborations, and tags.
     """
-    visible = set(ctx.creator_page_visible_fields)
+    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
     thumb_path = _resolve_thumbnail_or_default(ctx, creator["portrait"], ThumbType.PORTRAIT)
 
     context = {
@@ -794,8 +797,7 @@ def _collect_creator_context(ctx: HtmlBuildContext, creator: Dict, get_creator, 
         "profile_meta": _build_creator_profile_meta_entries(
             creator,
             visible,
-            members_label=ctx.section_labels.members,
-            labels=ctx.metadata_labels,
+            members_label=ctx.html_settings["creator_page_members_title"],
         ),
         "info_html": text_utils.markdown_to_html(creator["info"]),
         "tag_map": _group_tags_by_category(_collect_tags_from_creator(creator), ctx.fallback_tag_category),
@@ -819,8 +821,7 @@ def _build_creator_page(ctx: HtmlBuildContext, creator: dict, get_creator, creat
     template = env.get_template("creator.html.j2")
 
     output_html = template.render(
-        labels=ctx.labels,
-        display=ctx.display,
+        html_settings=ctx.html_settings,
         creator=_collect_creator_context(ctx, creator, get_creator, creator_stats),
         member_thumb_max_height=ctx.get_thumb_height(ThumbType.THUMB),
         project_thumb_max_height=ctx.get_thumb_height(ThumbType.GALLERY),
@@ -884,8 +885,7 @@ def _build_creator_overview_page(ctx: HtmlBuildContext, creator_entries: List[Di
     template = env.get_template("creator_overview.html.j2")
 
     output_html = template.render(
-        labels=ctx.labels,
-        display=ctx.display,
+        html_settings=ctx.html_settings,
         creator_entries=creator_entries,
         gallery_image_max_height=ctx.get_thumb_height(ThumbType.THUMB),
         ImageGalleryBuildingStrategy=ImageGalleryBuildingStrategy,
@@ -988,6 +988,7 @@ def _build_project_summary_entry(ctx: HtmlBuildContext, creator: Dict[str, Any],
         "media_counts": _compute_media_counts(project.get("media_groups", [])),
     }
 
+# TODO: Take aspect ratio and name from html_settings
 def _prepare_static_assets(ctx: HtmlBuildContext) -> None:
     shutil.copytree(CR4TE_CSS_DIR, ctx.css_dir, dirs_exist_ok=True)
     shutil.copytree(CR4TE_JS_DIR, ctx.js_dir, dirs_exist_ok=True)
@@ -995,13 +996,13 @@ def _prepare_static_assets(ctx: HtmlBuildContext) -> None:
 
     ctx.defaults_dir.mkdir(parents=True, exist_ok=True)
     th = ctx.get_thumb_height(ThumbType.THUMB)
-    image_utils.create_centered_text_image(int(th * 3 / 4), th, ctx.labels.fallback_images.thumb, ctx.get_default_thumb_path(ThumbType.THUMB))
+    image_utils.create_centered_text_image(int(th * 3 / 4), th, "Thumb", ctx.get_default_thumb_path(ThumbType.THUMB))
 
     ph = ctx.get_thumb_height(ThumbType.PORTRAIT)
-    image_utils.create_centered_text_image(int(ph * 3 / 4), ph, ctx.labels.fallback_images.portrait, ctx.get_default_thumb_path(ThumbType.PORTRAIT))
+    image_utils.create_centered_text_image(int(ph * 3 / 4), ph, "Portrait", ctx.get_default_thumb_path(ThumbType.PORTRAIT))
 
     ch = ctx.get_thumb_height(ThumbType.COVER)
-    image_utils.create_centered_text_image(int(ch * 4 / 3), ch, ctx.labels.fallback_images.cover, ctx.get_default_thumb_path(ThumbType.COVER))
+    image_utils.create_centered_text_image(int(ch * 4 / 3), ch, "Cover", ctx.get_default_thumb_path(ThumbType.COVER))
 
 
 def _prepare_output_dirs(ctx: HtmlBuildContext) -> None:
@@ -1010,8 +1011,8 @@ def _prepare_output_dirs(ctx: HtmlBuildContext) -> None:
     ctx.thumbs_dir.mkdir(parents=True, exist_ok=True)
 
 
-def build_html_pages(input_dir: Path, output_dir: Path, site: Dict, domain: Domain = Domain.CREATOR) -> Path:
-    ctx = HtmlBuildContext(input_dir, output_dir, site)
+def build_html_pages(input_dir: Path, output_dir: Path, html_settings: Dict, domain: Domain = Domain.CREATOR) -> Path:
+    ctx = HtmlBuildContext(input_dir, output_dir, html_settings)
 
     _prepare_output_dirs(ctx)
     _prepare_static_assets(ctx)

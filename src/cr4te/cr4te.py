@@ -158,7 +158,7 @@ def _build_cmd_handler(args):
     build_creator_json_files(input_dir, config["media_rules"], final_domain, saved_domain)
 
     logging.info("Building HTML site...")
-    index_html_path = build_html_pages(input_dir, output_dir, config["site"], final_domain)
+    index_html_path = build_html_pages(input_dir, output_dir, config["html_settings"], final_domain)
 
     save_global_state(input_dir, final_domain)
 

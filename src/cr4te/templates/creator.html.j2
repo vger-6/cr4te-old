@@ -20,9 +20,9 @@
 <div class="page-container">
   <div class="page-header">
     <div class="top-link">
-      <a href="{{ path_to_root }}index.html">{{ labels.creators }}</a> &middot;
-      <a href="{{ path_to_root }}projects.html">{{ labels.projects }}</a> &middot;
-      <a href="{{ path_to_root }}tags.html">{{ labels.tags }}</a>
+      <a href="{{ path_to_root }}index.html">{{ html_settings.creators_label }}</a> &middot;
+      <a href="{{ path_to_root }}projects.html">{{ html_settings.projects_label }}</a> &middot;
+      <a href="{{ path_to_root }}tags.html">{{ html_settings.tags_label }}</a>
       {% include "partials/_theme_dropdown.html.j2" %}
     </div>
 
@@ -36,11 +36,11 @@
       <div class="original-placeholder" data-mobile-target="1">
 
         <div class="section-box">
-          <div class="section-title">{{ labels.sections.profile }}</div>
+          <div class="section-title">{{ html_settings.creator_page_profile_title }}</div>
           <hr>
           <div class="section-content markdown">
             <div class="info-block {{ utils.get_info_block_layout(Orientation, creator.portrait_orientation) }}">
-              {% if not display.hide_portraits %}
+              {% if not html_settings.hide_portraits %}
                 <a href="{{ path_to_root }}{{ creator.rel_portrait_path }}" class="single-lightbox" data-lightbox-single="true">
                   <img src="{{ path_to_root }}{{ creator.rel_portrait_path }}" alt="Portrait of {{ creator.name }}">
                 </a>
@@ -52,7 +52,7 @@
 
         {% if creator.info_html %}
           <div class="section-box markdown">
-            <div class="section-title">{{ labels.sections.about }}</div>
+            <div class="section-title">{{ html_settings.creator_page_about_title }}</div>
             <hr>
             <div class="section-content text-content">
               {{ creator.info_html | safe }}
@@ -68,13 +68,13 @@
             <hr>
             <div class="section-content">
               <div class="info-block info-block--row">
-                {% if not display.hide_portraits %}
+                {% if not html_settings.hide_portraits %}
                   <a href="{{ path_to_root }}{{ member.rel_thumbnail_path }}" class="single-lightbox" data-lightbox-single="true">
                     <img src="{{ path_to_root }}{{ member.rel_thumbnail_path }}" alt="Portrait of {{ member.name }}">
                   </a>
                 {% endif %}
                 <div>
-                  <p><strong>{{ labels.metadata.name }}:</strong> <a href="{{ path_to_root }}{{ member.rel_html_path }}">{{ member.name }}</a></p>
+                  <p><strong>Name:</strong> <a href="{{ path_to_root }}{{ member.rel_html_path }}">{{ member.name }}</a></p>
                 </div>
               </div>
             </div>
@@ -85,7 +85,7 @@
       <div class="original-placeholder" data-mobile-target="3">
         {% if creator.tag_map %}
           <div class="section-box">
-            <div class="section-title">{{ labels.tags }}</div>
+            <div class="section-title">{{ html_settings.tags_label }}</div>
             <hr>
             <div class="section-content tag-list">
               {% for category, tags in creator.tag_map.items() %}
@@ -106,12 +106,12 @@
 
     <div class="right-column">
       
-      {% set image_gallery_class = utils.get_image_gallery_class(ImageGalleryBuildingStrategy, display.project_gallery.building_strategy) %}
-      {% set aspect_ratio = display.project_gallery.aspect_ratio or '1/1' %}
+      {% set image_gallery_class = utils.get_image_gallery_class(ImageGalleryBuildingStrategy, html_settings.project_gallery_building_strategy) %}
+      {% set aspect_ratio = html_settings.project_gallery_aspect_ratio or '1/1' %}
 
       {% if creator.projects %}
       <div class="section-box">
-        <div class="section-title">{{ labels.projects }}</div>
+        <div class="section-title">{{ html_settings.projects_label }}</div>
         <hr>
         <div class="section-content">
           <div class="{{ image_gallery_class }}"
@@ -136,7 +136,7 @@
 
       {% for collab in creator.collaborations %}
       <div class="section-box">
-        <div class="section-title">{{ labels.projects }} {{ labels.sections.collabs_title_prefix }} {{ collab.label }}</div>
+        <div class="section-title">{{ html_settings.projects_label }} with {{ collab.label }}</div>
         <hr>
         <div class="section-content">
           <div class="{{ image_gallery_class }}"
@@ -159,7 +159,7 @@
       </div>
       {% endfor %}
         
-      {{ media_macros.render_media_groups(path_to_root, creator.media_groups, gallery_image_max_height, display.pagination.creator_page_image_gallery_page_size) }}
+      {{ media_macros.render_media_groups(path_to_root, creator.media_groups, gallery_image_max_height, html_settings.creator_page_image_gallery_page_size) }}
       
       <div class="mobile-placeholder" data-mobile-target="1"></div>
       <div class="mobile-placeholder" data-mobile-target="2"></div>
