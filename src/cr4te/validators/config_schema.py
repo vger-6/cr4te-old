@@ -17,13 +17,12 @@ class HtmlSettings(BaseModel):
 
     creator_page_profile_title: str
     creator_page_about_title: str
-    creator_page_members_title: str
     creator_page_collabs_title_prefix: str
 
     project_page_overview_title: str
     project_page_description_title: str
-    project_page_audio_section_base_title: str
-    project_page_image_section_base_title: str
+    default_audio_section_title: str
+    default_image_section_title: str
     
     image_gallery_sample_max: conint(ge=0)
     image_gallery_sample_strategy: ImageSampleStrategy

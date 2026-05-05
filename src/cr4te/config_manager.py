@@ -30,13 +30,13 @@ DEFAULT_CONFIG = {
         
         "creator_page_profile_title": "Profile",
         "creator_page_about_title": "About",
-        "creator_page_members_title": "Members",
         "creator_page_collabs_title_prefix": "With",
               
         "project_page_overview_title": "Overview",
         "project_page_description_title": "Description",
-        "project_page_audio_section_base_title": "Audio",
-        "project_page_image_section_base_title": "Images",
+        
+        "default_audio_section_title": "Audio",
+        "default_image_section_title": "Images",
         
         "image_gallery_sample_max": 20,
         "image_gallery_sample_strategy": ImageSampleStrategy.SPREAD,
@@ -143,7 +143,7 @@ def _get_preset(domain: Domain) -> Dict:
                 "html_settings": {
                     "creators_label": "Directors",
                     "projects_label": "Movies",
-                    "project_page_audio_section_base_title": "Soundtrack",
+                    "default_audio_section_title": "Soundtrack",
                     "project_gallery_aspect_ratio": "2/3",
                  },
                "media_rules": {},
@@ -153,7 +153,7 @@ def _get_preset(domain: Domain) -> Dict:
                 "html_settings": {
                     "creators_label": "Musicians",
                     "projects_label": "Albums",
-                    "project_page_audio_section_base_title": "Tracks",
+                    "default_audio_section_title": "Tracks",
                     "media_type_order": [MediaType.AUDIO, MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT],
                     "project_gallery_aspect_ratio": "1/1",
                 },
@@ -174,7 +174,7 @@ def _get_preset(domain: Domain) -> Dict:
                 "html_settings": {
                     "creators_label": "Authors",
                     "projects_label": "Books",
-                    "project_page_audio_section_base_title": "Audio",
+                    "default_audio_section_title": "Audio",
                     "media_type_order": [MediaType.DOCUMENT, MediaType.AUDIO, MediaType.IMAGE, MediaType.VIDEO, MediaType.TEXT],
                     "project_gallery_aspect_ratio": "1000/1414",
                 },
@@ -186,7 +186,6 @@ def _get_preset(domain: Domain) -> Dict:
                     "creators_label": "Models",
                     "projects_label": "Scenes",
                     "creator_page_collabs_title_prefix": "Scenes with",
-                    "creator_page_members_title": "Featuring",
                     "media_type_order": [MediaType.VIDEO, MediaType.IMAGE, MediaType.TEXT, MediaType.DOCUMENT, MediaType.AUDIO],
                 },
                "media_rules": {},

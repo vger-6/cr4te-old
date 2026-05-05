@@ -48,31 +48,62 @@ class RenderMode(str, Enum):
 
 
 DOMAIN_META_CONFIG_OVERRIDES = {
+    Domain.CREATOR: {},
     Domain.MODEL: {
-        "makeup_artists": {"label": "Makeup Artists"},
+        "photographers": {"singular_label": "Photographer", "plural_label": "Photographers", "render": RenderMode.LIST},
+        "studios": {"singular_label": "Studio", "plural_label": "Studios", "render": RenderMode.LIST},
+        "designers": {"singular_label": "Designer", "plural_label": "Designers", "render": RenderMode.LIST},
+        "poses": {"singular_label": "Pose", "plural_label": "Poses"},
+        "makeup_artists": {"singular_label": "Makeup Artist", "plural_label": "Makeup Artists", "render": RenderMode.LIST},
+        "stylists": {"singular_label": "Stylist", "plural_label": "Stylists", "render": RenderMode.LIST},
+        "brands": {"singular_label": "Brand", "plural_label": "Brands"},
+        "magazines": {"singular_label": "Magazine", "plural_label": "Magazines"},
     },
     Domain.BOOK: {
-        "isbns": {"label": "ISBNs"},
-        "citations": {"label": "Citations"},
-        "cover_artists": {"label": "Cover Artists"},
+        "languages": {"singular_label": "Language", "plural_label": "Languages"},
+        "publishers": {"singular_label": "Publisher", "plural_label": "Publishers", "render": RenderMode.LIST},
+        "editors": {"singular_label": "Editor", "plural_label": "Editors", "render": RenderMode.LIST},
+        "translators": {"singular_label": "Translator", "plural_label": "Translators", "render": RenderMode.LIST},
+        "isbns": {"singular_label": "ISBN", "plural_label": "ISBNs", "render": RenderMode.LIST},
+        "citations": {"singular_label": "Citation", "plural_label": "Citations", "render": RenderMode.LIST},
+        "cover_artists": {"singular_label": "Cover Artist", "plural_label": "Cover Artists", "render": RenderMode.LIST},
+        "genres": {"singular_label": "Genre", "plural_label": "Genres"},
     },
     Domain.FILM: {
-        "actors": {"label": "Cast", "render": RenderMode.LIST},
-        "score_composers": {"label": "Score Composers"},
-        "visual_effects": {"label": "Visual Effects"},
-        "costume_designers": {"label": "Costume Designers"},
+        "actors": {"singular_label": "Actor", "plural_label": "Actors", "render": RenderMode.LIST},
+        "producers": {"singular_label": "Producer", "plural_label": "Producers", "render": RenderMode.LIST},
+        "cinematographers": {"singular_label": "Cinematographer", "plural_label": "Cinematographers", "render": RenderMode.LIST},
+        "score_composers": {"singular_label": "Score Composer", "plural_label": "Score Composers", "render": RenderMode.LIST},
+        "editors": {"singular_label": "Editor", "plural_label": "Editors", "render": RenderMode.LIST},
+        "genres": {"singular_label": "Genre", "plural_label": "Genres"},
+        "visual_effects": {"singular_label": "Visual Effect", "plural_label": "Visual Effects", "render": RenderMode.LIST},
+        "studios": {"singular_label": "Studio", "plural_label": "Studios", "render": RenderMode.LIST},
+        "writers": {"singular_label": "Writer", "plural_label": "Writers", "render": RenderMode.LIST},
+        "costume_designers": {"singular_label": "Costume Designer", "plural_label": "Costume Designers", "render": RenderMode.LIST},
     },
     Domain.MUSIC: {
-        "cover_artists": {"label": "Cover Artists"},
+        "musicians": {"singular_label": "Musician", "plural_label": "Musicians", "render": RenderMode.LIST},
+        "labels": {"singular_label": "Label", "plural_label": "Labels", "render": RenderMode.LIST},
+        "studios": {"singular_label": "Studio", "plural_label": "Studios", "render": RenderMode.LIST},
+        "genres": {"singular_label": "Genre", "plural_label": "Genres"},
+        "instruments": {"singular_label": "Instrument", "plural_label": "Instruments"},
+        "producers": {"singular_label": "Producer", "plural_label": "Producers", "render": RenderMode.LIST},
+        "cover_artists": {"singular_label": "Cover Artist", "plural_label": "Cover Artists", "render": RenderMode.LIST},
     },
-    Domain.ART: {},
+    Domain.ART: {
+        "mediums": {"singular_label": "Medium", "plural_label": "Mediums"},
+        "materials": {"singular_label": "Material", "plural_label": "Materials"},
+        "exhibitions": {"singular_label": "Exhibition", "plural_label": "Exhibitions", "render": RenderMode.LIST},
+        "periods": {"singular_label": "Period", "plural_label": "Periods"},
+    },
 }
 
 
-def _default_domain_meta_config(domain: Domain) -> Dict[str, Dict[str, str]]:
+def _default_domain_meta_config(domain: Domain) -> Dict[str, Dict[str, Any]]:
     return {
         field_name: {
-            "label": field_name.replace("_", " ").title(),
+            "singular_label": field_name.replace("_", " ").title(),
+            "plural_label": field_name.replace("_", " ").title(),
             "render": RenderMode.INLINE,
         }
         for field_name in get_domain_meta_model(domain).model_fields
@@ -80,14 +111,28 @@ def _default_domain_meta_config(domain: Domain) -> Dict[str, Dict[str, str]]:
 
 
 def _validate_domain_meta_config_overrides() -> None:
+    valid_config_keys = {"singular_label", "plural_label", "render"}
+
     for domain, field_config in DOMAIN_META_CONFIG_OVERRIDES.items():
         invalid_keys = set(field_config) - get_domain_meta_fields(domain)
         if invalid_keys:
             keys = ", ".join(sorted(invalid_keys))
             raise ValueError(f"DOMAIN_META_CONFIG_OVERRIDES contains invalid keys for domain {domain.value}: {keys}")
 
+        for field_name, overrides in field_config.items():
+            invalid_config_keys = set(overrides) - valid_config_keys
+            if invalid_config_keys:
+                keys = ", ".join(sorted(invalid_config_keys))
+                raise ValueError(f"DOMAIN_META_CONFIG_OVERRIDES contains invalid config keys for {domain.value}.{field_name}: {keys}")
 
-def _build_domain_meta_config() -> Dict[Domain, Dict[str, Dict[str, str]]]:
+            required_label_keys = {"singular_label", "plural_label"}
+            missing_label_keys = required_label_keys - set(overrides)
+            if missing_label_keys:
+                keys = ", ".join(sorted(missing_label_keys))
+                raise ValueError(f"DOMAIN_META_CONFIG_OVERRIDES is missing label keys for {domain.value}.{field_name}: {keys}")
+
+
+def _build_domain_meta_config() -> Dict[Domain, Dict[str, Dict[str, Any]]]:
     _validate_domain_meta_config_overrides()
     config = {}
 
@@ -291,6 +336,11 @@ def _compact_meta_entries(entries: Iterable[Optional[Dict[str, Any]]]) -> List[D
     ]
 
 
+def _select_domain_meta_label(field_config: Dict[str, Any], value_count: int) -> str:
+    label_key = "singular_label" if value_count == 1 else "plural_label"
+    return field_config[label_key]
+
+
 def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     entries = []
     config = DOMAIN_META_CONFIG.get(domain, {})
@@ -302,16 +352,12 @@ def _build_domain_meta_entries(domain: Domain, domain_meta: Dict[str, Any]) -> L
             continue
 
         field_config = config.get(field_name, {})
-        label = field_config.get("label") or field_name.replace("_", " ").title()
+        label = _select_domain_meta_label(field_config, len(normalized_value))
         render_mode = field_config.get("render", RenderMode.INLINE)
 
-        entries.append({
-            "label": label,
-            "value": normalized_value,
-            "render": render_mode.value,
-        })
+        entries.append(_build_meta_entry(label, normalized_value, render_mode))
 
-    return entries
+    return _compact_meta_entries(entries)
 
 
 def _build_project_meta_entries(domain: Domain, project: Dict[str, Any], release_date: str) -> List[Dict[str, Any]]:
@@ -510,7 +556,7 @@ def _build_media_groups_context(ctx: HtmlBuildContext, media_groups: List) -> Li
             "title": Path(rel).stem.title()
         } for rel in rel_text_paths]
 
-        section_titles = _get_section_titles(media_group, ctx.project_page_audio_section_base_title, ctx.project_page_image_section_base_title)
+        section_titles = _get_section_titles(media_group, ctx.default_audio_section_title, ctx.default_image_section_title)
 
         sections = [
             {"type": MediaType.VIDEO.value, "videos": videos},
@@ -571,14 +617,13 @@ def _build_person_meta_entries(
 def _build_collaboration_meta_entries(
     creator: Dict,
     visible: Set[CreatorField],
-    members_label: str,
     field_order: Sequence[CreatorField],
 ) -> List[Dict[str, Any]]:
     collab = creator["collaboration"]
     entries = []
 
     field_builders = {
-        CreatorField.MEMBERS: lambda: _build_meta_entry(members_label, collab["members"], RenderMode.LIST),
+        CreatorField.MEMBERS: lambda: _build_meta_entry("Memebers", collab["members"], RenderMode.LIST),
         CreatorField.FOUNDING_DATE: lambda: _build_meta_entry("Founded", date_utils.format_nice_date(collab["founding_date"])),
         CreatorField.DISSOLUTION_DATE: lambda: _build_meta_entry("Dissolved", date_utils.format_nice_date(collab["dissolution_date"])),
     }
@@ -612,7 +657,6 @@ def _build_creator_profile_meta_entries(
     visible: Set[CreatorField],
     project: Optional[Dict] = None,
     link: Optional[str] = None,
-    members_label: str = "Members",
     profile_fields: Optional[Sequence[CreatorField]] = None,
 ) -> List[Dict[str, Any]]:
     field_order = profile_fields or DEFAULT_CREATOR_FIELD_ORDER
@@ -621,7 +665,7 @@ def _build_creator_profile_meta_entries(
     if creator["type"] == CreatorType.PERSON:
         entries.extend(_build_person_meta_entries(creator, visible, project, field_order))
     else:
-        entries.extend(_build_collaboration_meta_entries(creator, visible, members_label, field_order))
+        entries.extend(_build_collaboration_meta_entries(creator, visible, field_order))
 
     entries.extend(_build_shared_creator_meta_entries(creator, visible, field_order))
 
@@ -651,31 +695,29 @@ def _collect_creator_base_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[
 
 def _collect_creator_entries(ctx: HtmlBuildContext, creator: Dict, project: Dict) -> Dict[str, Any]:
     entries = _collect_creator_base_entries(ctx, creator)
-    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
+    visible = ctx.creator_page_visible_fields
     entries["profile_meta"] = _build_creator_profile_meta_entries(
         creator,
         visible,
         project=project,
         link=entries["rel_html_path"],
-        members_label=ctx.html_settings["creator_page_members_title"],
     )
     return entries
 
 
 def _collect_collaborator_entries(ctx: HtmlBuildContext, creator: Dict) -> Dict[str, Any]:
     entries = _collect_creator_base_entries(ctx, creator)
-    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
+    visible = ctx.creator_page_visible_fields
     entries["profile_meta"] = _build_creator_profile_meta_entries(
         creator,
         visible,
         link=entries["rel_html_path"],
-        members_label=ctx.html_settings["creator_page_members_title"],
     )
     return entries
 
 
 def _collect_project_context(ctx: HtmlBuildContext, creator: Dict, project: Dict, get_creator, domain: Domain) -> Dict:
-    visible = set(ctx.html_settings.get("project_page_visible_fields", []))
+    visible = ctx.project_page_visible_fields
     thumb_path = _resolve_thumbnail_or_default(ctx, project["cover"], ThumbType.COVER)
     release_date = date_utils.format_nice_date(project["release_date"]) if ProjectField.RELEASE_DATE in visible else ""
 
@@ -720,7 +762,7 @@ def _build_project_page(ctx: HtmlBuildContext, creator: Dict, project: Dict, get
 def _get_collaboration_label(collab: Dict, creator_name: str) -> str:
     if creator_name in collab["collaboration"]["members"]:
         others = [n for n in collab["collaboration"]["members"] if n != creator_name]
-        return " ".join(others)
+        return ", ".join(others)
     return collab["name"]
 
 
@@ -786,7 +828,7 @@ def _collect_creator_context(ctx: HtmlBuildContext, creator: Dict, get_creator, 
     Builds the context dictionary for rendering a creator's page,
     including metadata, portrait, projects, collaborations, and tags.
     """
-    visible = set(ctx.html_settings.get("creator_page_visible_fields", []))
+    visible = ctx.creator_page_visible_fields
     thumb_path = _resolve_thumbnail_or_default(ctx, creator["portrait"], ThumbType.PORTRAIT)
 
     context = {
@@ -797,7 +839,6 @@ def _collect_creator_context(ctx: HtmlBuildContext, creator: Dict, get_creator, 
         "profile_meta": _build_creator_profile_meta_entries(
             creator,
             visible,
-            members_label=ctx.html_settings["creator_page_members_title"],
         ),
         "info_html": text_utils.markdown_to_html(creator["info"]),
         "tag_map": _group_tags_by_category(_collect_tags_from_creator(creator), ctx.fallback_tag_category),

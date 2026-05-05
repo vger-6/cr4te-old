@@ -136,7 +136,7 @@
 
       {% for collab in creator.collaborations %}
       <div class="section-box">
-        <div class="section-title">{{ html_settings.projects_label }} with {{ collab.label }}</div>
+        <div class="section-title">{{ html_settings.creator_page_collabs_title_prefix }} {{ collab.label }}</div>
         <hr>
         <div class="section-content">
           <div class="{{ image_gallery_class }}"

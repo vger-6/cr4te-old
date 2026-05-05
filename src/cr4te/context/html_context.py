@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set
 
+from ..enums.visible_fields import CreatorField, ProjectField
 from ..enums.thumb_type import ThumbType
 from ..context.base_context import BaseContext
 from ..constants import (
@@ -56,12 +57,12 @@ class HtmlBuildContext(BaseContext):
         return self.output_dir / "tags.html"
         
     @property
-    def project_page_audio_section_base_title(self) -> str:
-        return self.html_settings["project_page_audio_section_base_title"]
+    def default_audio_section_title(self) -> str:
+        return self.html_settings["default_audio_section_title"]
 
     @property
-    def project_page_image_section_base_title(self) -> str:
-        return self.html_settings["project_page_image_section_base_title"]
+    def default_image_section_title(self) -> str:
+        return self.html_settings["default_image_section_title"]
         
     @property
     def fallback_tag_category(self) -> str:
@@ -78,6 +79,14 @@ class HtmlBuildContext(BaseContext):
     @property
     def media_type_order(self) -> List[str]:
         return self.html_settings["media_type_order"]
+
+    @property
+    def creator_page_visible_fields(self) -> Set[CreatorField]:
+        return set(self.html_settings.get("creator_page_visible_fields", []))
+
+    @property
+    def project_page_visible_fields(self) -> Set[ProjectField]:
+        return set(self.html_settings.get("project_page_visible_fields", []))
 
     def get_default_thumb_path(self, thumb_type: ThumbType) -> Path:
         return self.defaults_dir / {
