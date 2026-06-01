@@ -1,4 +1,12 @@
-# cr4te
+# cr4te-old
+
+This repository contains an earlier development codebase for **cr4te**.
+
+The current repository is available at:
+
+https://github.com/vger-6/cr4te
+
+This repository is kept for historical reference only and is not actively maintained.
 
 ![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)
 [![License](https://img.shields.io/badge/license-NonCommercial-blue.svg)](LICENSE)
